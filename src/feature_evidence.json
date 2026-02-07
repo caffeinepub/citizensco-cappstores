@@ -1,0 +1,79 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-add-react-query-hooks-in-frontend-src-hooks-usequeries-ts-for-the-new-e-commerce-backend-endpoints-exposed-by-backend-main-mo-createvendor-getmyvendor-getvendorbyid-createproduct-updateproduct-listproducts-listproductsbyvendor-createorder-getorder-updateorderstatus-listmyorders-listordersbyvendor-creditvendor-admin-only-getmyvendorbalance-and-withdrawvendorbalance",
+      "featureTitle": "Add React Query hooks in frontend/src/hooks/useQueries.ts for the new e-commerce backend endpoints exposed by backend/main.mo: createVendor, getMyVendor, getVendorById, createProduct, updateProduct, listProducts, listProductsByVendor, createOrder, getOrder, updateOrderStatus, listMyOrders, listOrdersByVendor, creditVendor (admin-only), getMyVendorBalance, and withdrawVendorBalance.",
+      "files": [
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "stripe@3.0.0",
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-create-or-update-frontend-pages-components-to-use-the-new-e-commerce-hooks-so-the-ui-no-longer-relies-on-mock-local-only-data-for-shopping-orders-and-vendor-flows-product-browsing-uses-listproducts-listproductsbyvendor-vendor-onboarding-dashboard-uses-createvendor-getmyvendor-getmyvendorbalance-withdrawvendorbalance-and-order-history-detail-uses-listmyorders-getorder-and-listordersbyvendor-updateorderstatus-for-vendor-owners-admin-as-applicable",
+      "featureTitle": "Create or update frontend pages/components to use the new e-commerce hooks so the UI no longer relies on mock/local-only data for shopping, orders, and vendor flows: product browsing uses listProducts/listProductsByVendor, vendor onboarding/dashboard uses createVendor/getMyVendor/getMyVendorBalance/withdrawVendorBalance, and order history/detail uses listMyOrders/getOrder (and listOrdersByVendor/updateOrderStatus for vendor owners/admin as applicable).",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/components/Header.tsx",
+        "frontend/src/components/OrderDetailDialog.tsx",
+        "frontend/src/pages/OrdersPage.tsx",
+        "frontend/src/pages/ShopPage.tsx",
+        "frontend/src/pages/VendorPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "stripe@3.0.0",
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-fix-user-facing-pages-that-currently-call-the-admin-only-analytics-endpoint-getallanalytics-so-non-admin-users-do-not-trigger-backend-authorization-traps-only-admins-should-call-usegetallanalytics-and-non-admin-experiences-should-gracefully-render-with-empty-limited-analytics-data",
+      "featureTitle": "Fix user-facing pages that currently call the admin-only analytics endpoint getAllAnalytics so non-admin users do not trigger backend authorization traps; only admins should call useGetAllAnalytics, and non-admin experiences should gracefully render with empty/limited analytics data.",
+      "files": [
+        "frontend/src/components/RecommendationsPanel.tsx",
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/pages/DiscoveryHubPage.tsx",
+        "frontend/src/pages/MarketplacePage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "stripe@3.0.0",
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    }
+  ]
+}

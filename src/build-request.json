@@ -1,0 +1,87 @@
+{
+  "kind": "build_request",
+  "title": "Wire React frontend to new backend canister endpoints",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Add React Query hooks in frontend/src/hooks/useQueries.ts for the new e-commerce backend endpoints exposed by backend/main.mo: createVendor, getMyVendor, getVendorById, createProduct, updateProduct, listProducts, listProductsByVendor, createOrder, getOrder, updateOrderStatus, listMyOrders, listOrdersByVendor, creditVendor (admin-only), getMyVendorBalance, and withdrawVendorBalance.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "recent-messages-4"
+        ],
+        "quotes": [
+          "start wiring the frontend to these new backend endpoints next"
+        ]
+      },
+      "acceptanceCriteria": [
+        "useQueries.ts exports query/mutation hooks for each listed backend method, using the existing useActor() pattern.",
+        "Mutations invalidate the correct cached queries (e.g., product lists after create/update; order lists after create/status update; vendor balance after withdraw/credit).",
+        "Hooks are disabled when the actor is unavailable, consistent with existing hooks in useQueries.ts."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Create or update frontend pages/components to use the new e-commerce hooks so the UI no longer relies on mock/local-only data for shopping, orders, and vendor flows: product browsing uses listProducts/listProductsByVendor, vendor onboarding/dashboard uses createVendor/getMyVendor/getMyVendorBalance/withdrawVendorBalance, and order history/detail uses listMyOrders/getOrder (and listOrdersByVendor/updateOrderStatus for vendor owners/admin as applicable).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "recent-messages-4"
+        ],
+        "quotes": [
+          "start wiring the frontend to these new backend endpoints next"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A signed-in user can create a vendor profile via createVendor and then see it via getMyVendor without a page refresh.",
+        "Product browsing renders data returned from listProducts (and listProductsByVendor when filtered by vendor).",
+        "Checkout/order placement calls createOrder and the resulting order appears in the buyer’s order list via listMyOrders.",
+        "Order detail pages (or dialogs) fetch fresh data via getOrder rather than relying on previously passed state.",
+        "Vendor order management (if present) loads via listOrdersByVendor and updates via updateOrderStatus with UI feedback for success/failure."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Fix user-facing pages that currently call the admin-only analytics endpoint getAllAnalytics so non-admin users do not trigger backend authorization traps; only admins should call useGetAllAnalytics, and non-admin experiences should gracefully render with empty/limited analytics data.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "recent-messages-4"
+        ],
+        "quotes": [
+          "start wiring the frontend to these new backend endpoints next"
+        ]
+      },
+      "acceptanceCriteria": [
+        "MarketplacePage and DiscoveryHubPage do not invoke getAllAnalytics for non-admin users (no unauthorized errors in console/network).",
+        "RecommendationsPanel continues to render for non-admins; if analytics is unavailable, it uses safe defaults (e.g., zeros) without crashing.",
+        "AdminPanel continues to use getAllAnalytics and displays analytics normally for admins."
+      ]
+    }
+  ],
+  "constraints": [
+    "Do not edit files under frontend/src/components/ui (compose them as-is).",
+    "Do not modify immutable hook files: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx.",
+    "Backend must remain a single Motoko actor; do not introduce additional backend services."
+  ],
+  "nonGoals": [
+    "Do not change backend authorization rules or add new backend endpoints as part of this request.",
+    "Do not address Stripe session/status keying, Stripe allowedCountries encoding, or long-term stable storage persistence unless explicitly requested later.",
+    "Do not redesign the overall IA/UX beyond what is required to connect existing UI to the new endpoints."
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  },
+  "userProfileUpdate": {
+    "goalsToAdd": [],
+    "goalsToRemove": [],
+    "preferencesToAdd": [],
+    "preferencesToRemove": [],
+    "miscToAdd": [],
+    "miscToRemove": [],
+    "fieldsToSet": {},
+    "fieldsToDelete": []
+  }
+}
