@@ -1,12 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Wire the React frontend to the new e-commerce backend canister endpoints and prevent non-admin users from calling admin-only analytics.
+**Goal:** Make vendor category storage, filtering, and selection more consistent and easier to use.
 
 **Planned changes:**
-- Add React Query query/mutation hooks in `frontend/src/hooks/useQueries.ts` for: `createVendor`, `getMyVendor`, `getVendorById`, `createProduct`, `updateProduct`, `listProducts`, `listProductsByVendor`, `createOrder`, `getOrder`, `updateOrderStatus`, `listMyOrders`, `listOrdersByVendor`, `creditVendor` (admin-only), `getMyVendorBalance`, `withdrawVendorBalance`, using the existing `useActor()` pattern and disabling hooks when the actor is unavailable.
-- Ensure mutations invalidate the appropriate cached queries (e.g., product lists after create/update; order lists after create/status update; vendor balance after withdraw/credit).
-- Update existing pages/components to use the new hooks instead of mock/local-only data for product browsing, vendor onboarding/dashboard, checkout/order placement, order history/detail, and vendor order management where present.
-- Guard admin-only analytics usage so `getAllAnalytics` is only invoked for admins; non-admin pages render safely with empty/limited analytics defaults and no authorization traps.
+- Normalize and de-duplicate vendor categories on backend writes (createVendor, updateVendorProfile) by trimming, collapsing whitespace, and handling case consistently; reject empty/whitespace-only categories with a clear error.
+- Refine backend filtering for listPublicVendorsByCategory to use case-insensitive, whitespace-normalized equality matching (no substring/partial matches).
+- Update the VendorCategoryInput UX so suggestions can show on focus (even when empty), improve keyboard navigation (highlight + Enter to add), and support Escape/outside-click to close without removing selected categories.
 
-**User-visible outcome:** Signed-in users can create and view vendor profiles, browse products, place orders, and view up-to-date order details using live backend data; vendor owners/admins can manage vendor orders and order statuses where applicable; non-admin users no longer see unauthorized analytics errors while admin analytics continues to work for admins.
+**User-visible outcome:** Vendor categories behave consistently across creation, editing, and browsing: duplicates are prevented, category filtering is exact (after normalization), and selecting categories is easier with better suggestions and keyboard controls.

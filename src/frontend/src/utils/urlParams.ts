@@ -206,3 +206,97 @@ export function getSecretFromHash(paramName: string): string | null {
 export function getSecretParameter(paramName: string): string | null {
     return getSecretFromHash(paramName);
 }
+
+/**
+ * Vendor directory filter state
+ */
+export interface VendorFilters {
+    search: string;
+    category: string | null;
+    sort: 'name-asc' | 'newest';
+}
+
+/**
+ * Read vendor directory filters from URL parameters
+ * Returns default values if parameters are not present
+ */
+export function readFiltersFromUrl(): VendorFilters {
+    const search = getUrlParameter('search') || '';
+    const category = getUrlParameter('category') || null;
+    const sortParam = getUrlParameter('sort');
+    const sort: 'name-asc' | 'newest' = sortParam === 'newest' ? 'newest' : 'name-asc';
+
+    return {
+        search,
+        category,
+        sort,
+    };
+}
+
+/**
+ * Update URL parameters for vendor directory filters
+ * Null values remove the parameter from the URL
+ * Uses history.replaceState to avoid adding to browser history
+ */
+export function updateUrlParams(filters: {
+    search?: string | null;
+    category?: string | null;
+    sort?: string | null;
+}): void {
+    if (!window.history.replaceState) {
+        return;
+    }
+
+    const hash = window.location.hash;
+    if (!hash || hash.length <= 1) {
+        return;
+    }
+
+    // Remove the leading #
+    const hashContent = hash.substring(1);
+
+    // Split route path from query string
+    const queryStartIndex = hashContent.indexOf('?');
+    const routePath = queryStartIndex === -1 ? hashContent : hashContent.substring(0, queryStartIndex);
+    const existingQueryString = queryStartIndex === -1 ? '' : hashContent.substring(queryStartIndex + 1);
+
+    // Parse existing parameters
+    const params = new URLSearchParams(existingQueryString);
+
+    // Update parameters
+    if (filters.search !== undefined) {
+        if (filters.search) {
+            params.set('search', filters.search);
+        } else {
+            params.delete('search');
+        }
+    }
+
+    if (filters.category !== undefined) {
+        if (filters.category) {
+            params.set('category', filters.category);
+        } else {
+            params.delete('category');
+        }
+    }
+
+    if (filters.sort !== undefined) {
+        if (filters.sort) {
+            params.set('sort', filters.sort);
+        } else {
+            params.delete('sort');
+        }
+    }
+
+    // Reconstruct the URL
+    const newQueryString = params.toString();
+    let newHash = routePath;
+
+    if (newQueryString) {
+        newHash += '?' + newQueryString;
+    }
+
+    // Update the URL without adding to history
+    const newUrl = window.location.pathname + window.location.search + '#' + newHash;
+    window.history.replaceState(null, '', newUrl);
+}

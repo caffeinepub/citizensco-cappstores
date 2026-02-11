@@ -14,6 +14,8 @@ import AdminPanel from './components/AdminPanel';
 import ShopPage from './pages/ShopPage';
 import OrdersPage from './pages/OrdersPage';
 import VendorPage from './pages/VendorPage';
+import VendorDirectoryPage from './pages/VendorDirectoryPage';
+import VendorStorePage from './pages/VendorStorePage';
 
 // Layout component with Header and Footer
 function Layout() {
@@ -89,6 +91,18 @@ const vendorRoute = createRoute({
   component: VendorPage,
 });
 
+const vendorsDirectoryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/vendors',
+  component: VendorDirectoryPage,
+});
+
+const vendorStoreRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/vendors/$vendorId',
+  component: VendorStorePage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   walletRoute,
@@ -99,6 +113,8 @@ const routeTree = rootRoute.addChildren([
   shopRoute,
   ordersRoute,
   vendorRoute,
+  vendorsDirectoryRoute,
+  vendorStoreRoute,
 ]);
 
 const router = createRouter({ routeTree });

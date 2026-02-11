@@ -2,7 +2,7 @@ import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, Menu, X, Wallet, Gift, Compass, BarChart3, Shield, ShoppingCart, Package, Store } from 'lucide-react';
+import { Moon, Sun, Menu, X, Wallet, Gift, Compass, BarChart3, Shield, ShoppingCart, Package, Store, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useIsCallerAdmin } from '../hooks/useQueries';
 import { useNavigate } from '@tanstack/react-router';
@@ -52,6 +52,10 @@ export default function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/vendors' })} className="gap-2">
+            <Users className="h-4 w-4" />
+            Vendors
+          </Button>
           {isAuthenticated && (
             <>
               <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/shop' })} className="gap-2">
@@ -64,7 +68,7 @@ export default function Header() {
               </Button>
               <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/vendor' })} className="gap-2">
                 <Store className="h-4 w-4" />
-                Vendor
+                Vendor Dashboard
               </Button>
               <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/wallet' })} className="gap-2">
                 <Wallet className="h-4 w-4" />
@@ -118,6 +122,10 @@ export default function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur">
           <nav className="container flex flex-col gap-2 py-4">
+            <Button variant="ghost" size="sm" onClick={() => { navigate({ to: '/vendors' }); setMobileMenuOpen(false); }} className="justify-start gap-2">
+              <Users className="h-4 w-4" />
+              Vendors
+            </Button>
             {isAuthenticated && (
               <>
                 <Button variant="ghost" size="sm" onClick={() => { navigate({ to: '/shop' }); setMobileMenuOpen(false); }} className="justify-start gap-2">
@@ -130,7 +138,7 @@ export default function Header() {
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => { navigate({ to: '/vendor' }); setMobileMenuOpen(false); }} className="justify-start gap-2">
                   <Store className="h-4 w-4" />
-                  Vendor
+                  Vendor Dashboard
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => { navigate({ to: '/wallet' }); setMobileMenuOpen(false); }} className="justify-start gap-2">
                   <Wallet className="h-4 w-4" />

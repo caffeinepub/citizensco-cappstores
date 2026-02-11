@@ -10,53 +10,38 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface AnalyticsEntry {
-  'clicks' : bigint,
-  'views' : bigint,
-  'projectId' : string,
-}
-export type ExternalBlob = Uint8Array;
 export interface Order {
   'id' : string,
   'status' : OrderStatus,
   'createdAt' : bigint,
   'productId' : string,
   'totalAmount' : bigint,
-  'vendorId' : string,
-  'buyerPrincipal' : Principal,
+  'vendorId' : Principal,
   'quantity' : bigint,
+  'customerId' : Principal,
 }
-export type OrderStatus = { 'cancelled' : null } |
+export type OrderStatus = { 'shipped' : null } |
+  { 'cancelled' : null } |
   { 'pending' : null } |
-  { 'fulfilled' : null } |
-  { 'declined' : null };
+  { 'paid' : null } |
+  { 'delivered' : null };
 export interface Product {
   'id' : string,
-  'imageBlob' : ExternalBlob,
-  'inventory' : bigint,
   'name' : string,
   'createdAt' : bigint,
   'description' : string,
-  'vendorId' : string,
+  'stock' : bigint,
+  'vendorId' : Principal,
   'price' : bigint,
 }
 export interface ProjectEntry {
   'id' : string,
-  'url' : string,
-  'revenueShareConfigId' : [] | [string],
-  'logo' : ExternalBlob,
+  'clicks' : bigint,
+  'views' : bigint,
+  'owner' : Principal,
   'name' : string,
+  'createdAt' : bigint,
   'description' : string,
-  'category' : string,
-}
-export interface RevenueShareConfig {
-  'id' : string,
-  'participants' : Array<RevenueShareParticipant>,
-}
-export interface RevenueShareParticipant {
-  'principal' : [] | [Principal],
-  'stripeId' : [] | [string],
-  'percentage' : bigint,
 }
 export interface RewardCampaign {
   'id' : string,
@@ -103,23 +88,21 @@ export interface TransformationOutput {
 }
 export interface UserProfile {
   'name' : string,
+  'createdAt' : bigint,
   'email' : [] | [string],
-  'preferences' : Array<string>,
 }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
 export interface Vendor {
-  'id' : string,
   'bio' : string,
+  'categories' : Array<string>,
+  'balance' : bigint,
   'displayName' : string,
-  'ownerPrincipal' : Principal,
+  'published' : boolean,
   'createdAt' : bigint,
-}
-export interface Wallet {
-  'stripeBalance' : bigint,
-  'icpBalance' : bigint,
-  'transactionHistory' : Array<string>,
+  'vendorOwner' : Principal,
+  'principalId' : Principal,
 }
 export interface _CaffeineStorageCreateCertificateResult {
   'method' : string,
@@ -162,48 +145,49 @@ export interface _SERVICE {
     [Array<ShoppingItem>, string, string],
     string
   >,
-  'createOrder' : ActorMethod<[string, string, bigint], string>,
-  'createProduct' : ActorMethod<
-    [string, string, string, bigint, ExternalBlob, bigint],
-    string
-  >,
-  'createRevenueShareConfig' : ActorMethod<[RevenueShareConfig], undefined>,
+  'createOrder' : ActorMethod<[Order], undefined>,
+  'createProduct' : ActorMethod<[Product], undefined>,
   'createRewardCampaign' : ActorMethod<[RewardCampaign], undefined>,
-  'createVendor' : ActorMethod<[string, string], string>,
-  'creditVendor' : ActorMethod<[string, bigint], undefined>,
-  'depositToWallet' : ActorMethod<[bigint, bigint], undefined>,
-  'getAllAnalytics' : ActorMethod<[], Array<AnalyticsEntry>>,
-  'getAnalytics' : ActorMethod<[string], [] | [AnalyticsEntry]>,
+  'createVendor' : ActorMethod<[string, string, Array<string>], undefined>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  'getMyVendor' : ActorMethod<[], [] | [Vendor]>,
-  'getMyVendorBalance' : ActorMethod<[], bigint>,
+  'getCampaignsState' : ActorMethod<
+    [],
+    { 'users' : Array<UserProfile>, 'campaigns' : Array<RewardCampaign> }
+  >,
   'getOrder' : ActorMethod<[string], [] | [Order]>,
-  'getProjectEntries' : ActorMethod<[], Array<ProjectEntry>>,
-  'getRevenueShareConfig' : ActorMethod<[string], [] | [RevenueShareConfig]>,
+  'getProjectAnalytics' : ActorMethod<
+    [string],
+    [] | [{ 'clicks' : bigint, 'views' : bigint }]
+  >,
+  'getPublicVendor' : ActorMethod<[Principal], [] | [Vendor]>,
+  'getRewardCampaignsSample' : ActorMethod<[], Array<RewardCampaign>>,
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
-  'getVendorById' : ActorMethod<[string], [] | [Vendor]>,
-  'getWallet' : ActorMethod<[], [] | [Wallet]>,
+  'getVendor' : ActorMethod<[Principal], [] | [Vendor]>,
+  'getVendorBalance' : ActorMethod<[Principal], bigint>,
+  'getVendorOrders' : ActorMethod<[], Array<Order>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isStripeConfigured' : ActorMethod<[], boolean>,
   'joinRewardCampaign' : ActorMethod<[string], undefined>,
-  'listMyOrders' : ActorMethod<[], Array<Order>>,
-  'listOrdersByVendor' : ActorMethod<[string], Array<Order>>,
+  'listOrders' : ActorMethod<[], Array<Order>>,
   'listProducts' : ActorMethod<[], Array<Product>>,
-  'listProductsByVendor' : ActorMethod<[string], Array<Product>>,
+  'listProjectEntries' : ActorMethod<[], Array<ProjectEntry>>,
+  'listPublicVendors' : ActorMethod<[], Array<Vendor>>,
+  'listPublicVendorsByCategory' : ActorMethod<[string], Array<Vendor>>,
+  'publishVendor' : ActorMethod<[], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setStripeConfiguration' : ActorMethod<[StripeConfiguration], undefined>,
   'trackProjectClick' : ActorMethod<[string], undefined>,
   'trackProjectView' : ActorMethod<[string], undefined>,
   'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
+  'unpublishVendor' : ActorMethod<[], undefined>,
   'updateOrderStatus' : ActorMethod<[string, OrderStatus], undefined>,
-  'updateProduct' : ActorMethod<
-    [string, string, string, bigint, ExternalBlob, bigint],
+  'updateProduct' : ActorMethod<[string, Product], undefined>,
+  'updateVendorProfile' : ActorMethod<
+    [string, string, Array<string>],
     undefined
   >,
-  'updateRevenueShareConfig' : ActorMethod<[RevenueShareConfig], undefined>,
-  'withdrawFromWallet' : ActorMethod<[bigint, bigint], undefined>,
   'withdrawVendorBalance' : ActorMethod<[bigint], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

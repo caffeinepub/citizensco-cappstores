@@ -1,81 +1,51 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-05T12:27:04.482Z",
+  "generatedAt": "2026-02-11T04:22:03.044Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
     "total": 3,
-    "implemented": 3,
+    "implemented": 1,
     "items": [
       {
-        "id": "REQ-1",
-        "summary": "Add React Query hooks in frontend/src/hooks/useQueries.ts for the new e-commerce backend endpoints exposed by backend/main.mo: createVendor, getMyVendor, getVendorById, createProduct, updateProduct, listProducts, listProductsByVendor, createOrder, getOrder, updateOrderStatus, listMyOrders, listOrdersByVendor, creditVendor (admin-only), getMyVendorBalance, and withdrawVendorBalance.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/hooks/useQueries.ts"
-        ]
+        "id": "REQ-4",
+        "summary": "Normalize and de-duplicate vendor categories on write in the backend (createVendor and updateVendorProfile) so stored vendor categories are consistent regardless of casing/extra whitespace.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       },
       {
-        "id": "REQ-2",
-        "summary": "Create or update frontend pages/components to use the new e-commerce hooks so the UI no longer relies on mock/local-only data for shopping, orders, and vendor flows: product browsing uses listProducts/listProductsByVendor, vendor onboarding/dashboard uses createVendor/getMyVendor/getMyVendorBalance/withdrawVendorBalance, and order history/detail uses listMyOrders/getOrder (and listOrdersByVendor/updateOrderStatus for vendor owners/admin as applicable).",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/ShopPage.tsx",
-          "frontend/src/pages/OrdersPage.tsx",
-          "frontend/src/components/OrderDetailDialog.tsx",
-          "frontend/src/pages/VendorPage.tsx",
-          "frontend/src/App.tsx",
-          "frontend/src/components/Header.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/ShopPage.tsx",
-          "frontend/src/pages/OrdersPage.tsx",
-          "frontend/src/components/OrderDetailDialog.tsx",
-          "frontend/src/pages/VendorPage.tsx",
-          "frontend/src/App.tsx",
-          "frontend/src/components/Header.tsx"
-        ]
+        "id": "REQ-5",
+        "summary": "Refine backend category filtering for listPublicVendorsByCategory so category matching is consistent with the frontend’s normalization rules and does not rely on substring matching.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       },
       {
-        "id": "REQ-3",
-        "summary": "Fix user-facing pages that currently call the admin-only analytics endpoint getAllAnalytics so non-admin users do not trigger backend authorization traps; only admins should call useGetAllAnalytics, and non-admin experiences should gracefully render with empty/limited analytics data.",
+        "id": "REQ-6",
+        "summary": "Improve the vendor category selection UX in the VendorCategoryInput component so suggestions are easier to discover and keyboard navigation is more resilient.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/MarketplacePage.tsx",
-          "frontend/src/pages/DiscoveryHubPage.tsx",
-          "frontend/src/components/RecommendationsPanel.tsx"
+          "frontend/src/components/vendor/VendorCategoryInput.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/MarketplacePage.tsx",
-          "frontend/src/pages/DiscoveryHubPage.tsx",
-          "frontend/src/components/RecommendationsPanel.tsx"
+          "frontend/src/components/vendor/VendorCategoryInput.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/App.tsx",
-    "frontend/src/components/Header.tsx",
-    "frontend/src/components/OrderDetailDialog.tsx",
-    "frontend/src/components/RecommendationsPanel.tsx",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/DiscoveryHubPage.tsx",
-    "frontend/src/pages/MarketplacePage.tsx",
-    "frontend/src/pages/OrdersPage.tsx",
-    "frontend/src/pages/ShopPage.tsx",
-    "frontend/src/pages/VendorPage.tsx",
+    "frontend/src/components/vendor/VendorCategoryInput.tsx",
+    "frontend/src/utils/urlParams.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

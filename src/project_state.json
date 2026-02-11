@@ -1,307 +1,16 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 10,
-  "summary": "CitizensCo CAppStores is a decentralized marketplace on the Internet Computer (IC) with an authenticated (Internet Identity) React web UI and a Motoko canister backend. It supports DApp listings with client-side “AI” recommendations/trending insights, engagement analytics, admin management (listings, Stripe config, revenue-share configs, reward campaigns, analytics dashboards), and a dual-balance wallet (ICP + Stripe/fiat) with deposit/withdraw and reward-credit flows. The project has been expanded to include an e-commerce-style shopping experience with product browsing/detail pages, cart and checkout flows, order history/detail/confirmation pages, and vendor onboarding plus a vendor dashboard/gated vendor UI components.",
+  "projectStateVersion": 3,
+  "summary": "Project involves an app with vendors and category assignment; next planned enhancement is improving how vendors can be assigned to categories.",
+  "architectural_notes": [],
+  "known_issues": [],
+  "isFixRequest": false,
   "existing_features": [
     {
-      "id": "IF-1",
-      "title": "Internet Identity authentication provider",
-      "synonyms": [
-        "II auth",
-        "InternetIdentityProvider"
-      ],
-      "description": "Provides login/logout and persisted identity loading using @dfinity/auth-client. Exposes identity and login status flags via React context, including 30-day delegation TTL configuration.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-2",
-      "title": "Canister actor creation bound to identity",
-      "synonyms": [
-        "useActor",
-        "agent actor setup"
-      ],
-      "description": "Creates an anonymous or authenticated backend actor (agent) depending on the current Internet Identity. On authenticated creation, calls _initializeAccessControlWithSecret using a secret extracted from the URL hash/session to bootstrap access control. Invalidates/refetches React Query caches when the actor changes.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-3",
-      "title": "Role-based access control (admin/user/guest)",
-      "synonyms": [
-        "AccessControl",
-        "authorization mixin"
-      ],
-      "description": "Motoko access-control module tracks per-principal roles and permissions. The first non-anonymous principal that initializes with the correct admin token becomes admin; subsequent principals become users. Admins can assign roles. Exposes isCallerAdmin and getCallerUserRole endpoints.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-4",
-      "title": "Secure secret extraction from URL hash",
-      "synonyms": [
-        "admin token parsing",
-        "urlParams utilities"
-      ],
-      "description": "Utility helpers to read secret parameters (e.g., caffeineAdminToken) from the URL hash, persist to sessionStorage, and remove them from the URL to reduce history/referrer leakage.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-5",
-      "title": "User profile management (caller save/get)",
-      "synonyms": [
-        "profiles",
-        "personalization profile"
-      ],
-      "description": "Backend supports saving and retrieving the caller’s profile (name, optional email, preferences array) with user-role enforcement. Frontend includes a non-dismissible ProfileSetupModal prompting first-time users to create a profile, and React Query hooks to fetch/save it.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-6",
-      "title": "DApp/project listings storage and retrieval",
-      "synonyms": [
-        "project entries",
-        "marketplace listings"
-      ],
-      "description": "Admins can add project entries (id, name, description, url, category, logo blob, optional revenueShareConfigId). Anyone can query all project entries. Frontend Marketplace page supports search, category filtering, sorting, and grid/list views.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-7",
-      "title": "Logo upload and ExternalBlob handling",
-      "synonyms": [
-        "blob logo upload",
-        "ExternalBlob"
-      ],
-      "description": "Frontend AddDAppModal converts an uploaded image file into bytes and constructs an ExternalBlob. UI displays logos via entry.logo.getDirectURL(). Backend stores logo as Storage.ExternalBlob within ProjectEntry.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-8",
-      "title": "Engagement analytics tracking (views/clicks)",
-      "synonyms": [
-        "analytics",
-        "tracking"
-      ],
-      "description": "Backend records per-project views and clicks via trackProjectView and trackProjectClick for authenticated users. Admin-only queries exist to retrieve analytics for a project or all projects. Frontend components trigger view tracking on render and click tracking on launch actions.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-9",
-      "title": "Admin analytics dashboards",
-      "synonyms": [
-        "AdminPanel overview",
-        "analytics tab"
-      ],
-      "description": "Admin panel aggregates analytics into overview stats (total views/clicks/CTR) and provides detailed tables ranking DApps by engagement. Uses React Query to fetch project entries and analytics and merges them client-side.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-10",
-      "title": "Client-side AI-style recommendations and discovery scoring",
-      "synonyms": [
-        "AI recommendations",
-        "discovery engine"
-      ],
-      "description": "RecommendationsPanel and DiscoveryHubPage compute heuristic scores from analytics and user profile preferences to surface top recommendations, trending DApps, emerging DApps, and an engagement leaderboard (all computed on the client).",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-11",
-      "title": "Stripe configuration management (admin)",
-      "synonyms": [
-        "Stripe setup",
-        "payment configuration"
-      ],
-      "description": "Backend stores an optional Stripe configuration (secret key + allowed countries) set by admins. Frontend shows an admin-only StripeSetupModal when Stripe is not configured and allows setting the configuration via mutation.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-12",
-      "title": "Stripe checkout session creation via IC HTTP outcalls",
-      "synonyms": [
-        "createCheckoutSession",
-        "HTTP outcalls"
-      ],
-      "description": "Backend uses IC management canister http_request outcalls to call Stripe APIs (GET/POST) with a transform function. Frontend exposes a React Query mutation to create a checkout session and constructs success/cancel URLs based on window location.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-13",
-      "title": "Revenue share configuration CRUD (admin)",
-      "synonyms": [
-        "revenue split",
-        "payout participants"
-      ],
-      "description": "Backend supports create/update/get for RevenueShareConfig (id + participants). Participants can be ICP principals or Stripe account IDs with a percentage. Frontend includes RevenueShareConfigModal for creating configs with validation and RevenueDashboard badges that load configs and show participant counts.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-14",
-      "title": "Revenue dashboard (simulated earnings)",
-      "synonyms": [
-        "RevenueDashboard",
-        "revenue metrics"
-      ],
-      "description": "Admin revenue UI estimates revenue from views/clicks using fixed rates and displays totals, per-DApp breakdown, and whether a DApp has a revenueShareConfigId linked (active vs pending).",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-15",
-      "title": "Dual-balance wallet (ICP + Stripe/fiat)",
-      "synonyms": [
-        "wallet",
-        "multi-currency balance"
-      ],
-      "description": "Backend wallet model tracks ICP balance, Stripe balance, and a string transaction history per user. Users can query their wallet, deposit, and withdraw with balance checks. Frontend WalletPage displays balances, deposit/withdraw forms, and history in tabs.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-16",
-      "title": "Reward campaign backend (create/join/complete) with wallet crediting",
-      "synonyms": [
-        "rewards engine",
-        "campaigns"
-      ],
-      "description": "Backend stores reward campaigns with 11 campaign types and allows admins to create campaigns. Users can join campaigns and complete them to credit ICP rewards into their wallet with a transaction history entry.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-17",
-      "title": "Reward campaign creation UI (admin modal)",
-      "synonyms": [
-        "CreateRewardCampaignModal"
-      ],
-      "description": "Frontend modal to create reward campaigns by selecting one of 11 campaign types, specifying a name/description, and entering a reward amount. Calls backend createRewardCampaign via mutation and invalidates reward campaigns cache keys (hook prepared).",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-18",
-      "title": "Rewards participation UI (currently mock-driven)",
-      "synonyms": [
-        "RewardsPage"
-      ],
-      "description": "Frontend RewardsPage renders a catalog of campaign types and a set of mock campaigns, providing buttons that call joinRewardCampaign and completeRewardCampaign mutations.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-19",
-      "title": "Global platform dashboard (aggregated + mocked metrics)",
-      "synonyms": [
-        "Unified Analytics Dashboard",
-        "GlobalDashboardPage"
-      ],
-      "description": "Authenticated-only dashboard page that combines backend analytics totals with additional mocked platform metrics (users, rewards, ads, token circulation) and presents multiple metric cards and sections for advertising impact, wallet activity, and campaign participation.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-20",
-      "title": "Blob storage maintenance mixin for canister integration",
-      "synonyms": [
-        "storage gateway",
-        "blob GC"
-      ],
-      "description": "Backend includes a storage mixin that can update authorized gateway principals from a cashier canister, list blobs to delete (authorized only), confirm deletion and trigger GC, check blob liveness, and refill the cashier with available cycles (cashier-only).",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-21",
-      "title": "Responsive UI shell with theme toggling",
-      "synonyms": [
-        "Header/Footer",
-        "dark mode"
-      ],
-      "description": "Header provides navigation to key pages, login/logout actions, admin link visibility, and mobile menu. next-themes toggles dark/light. Footer provides basic site links and branding attribution.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-22",
-      "title": "Voice-enabled “Talk or Type” input component",
-      "synonyms": [
-        "speech recognition input",
-        "TalkOrTypeInput"
-      ],
-      "description": "Reusable input component that supports typed submission and browser speech recognition (SpeechRecognition/webkitSpeechRecognition) to fill the input via voice, with toast notifications for state/errors.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-23",
-      "title": "E-commerce shopping pages (shop, product detail, cart, checkout)",
-      "synonyms": [
-        "ShopPage",
-        "ProductDetailPage",
-        "CartPage",
-        "CheckoutPage"
-      ],
-      "description": "Frontend includes a shop browsing page, product detail view, cart page, and checkout flow, supported by reusable e-commerce UI components (e.g., ProductCard) and money formatting utilities.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-24",
-      "title": "Orders UX (orders list, order detail, order confirmation)",
-      "synonyms": [
-        "OrdersPage",
-        "OrderDetailPage",
-        "OrderConfirmationPage",
-        "OrderStatusBadge"
-      ],
-      "description": "Frontend provides order history listing, order detail view, and order confirmation page, with shared UI elements to display order status consistently.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "IF-25",
-      "title": "Vendor onboarding and vendor dashboard UI",
-      "synonyms": [
-        "VendorOnboardingPage",
-        "VendorDashboardPage",
-        "VendorGate"
-      ],
-      "description": "Frontend adds vendor onboarding flow and a vendor dashboard experience, including gating components/utilities to restrict vendor-only sections in the UI.",
-      "reqIds": [],
-      "version": 1
-    },
-    {
-      "id": "feature-add-react-query-hooks-in-frontend-src-hooks-usequeries-ts-for-the-new-e-commerce-backend-endpoints-exposed-by-backend-main-mo-createvendor-getmyvendor-getvendorbyid-createproduct-updateproduct-listproducts-listproductsbyvendor-createorder-getorder-updateorderstatus-listmyorders-listordersbyvendor-creditvendor-admin-only-getmyvendorbalance-and-withdrawvendorbalance",
-      "title": "Add React Query hooks in frontend/src/hooks/useQueries.ts for the new e-commerce backend endpoints exposed by backend/main.mo: createVendor, getMyVendor, getVendorById, createProduct, updateProduct, listProducts, listProductsByVendor, createOrder, getOrder, updateOrderStatus, listMyOrders, listOrdersByVendor, creditVendor (admin-only), getMyVendorBalance, and withdrawVendorBalance.",
+      "id": "feature-improve-the-vendor-category-selection-ux-in-the-vendorcategoryinput-component-so-suggestions-are-easier-to-discover-and-keyboard-navigation-is-more-resilient",
+      "title": "Improve the vendor category selection UX in the VendorCategoryInput component so suggestions are easier to discover and keyboard navigation is more resilient.",
       "reqIds": [
-        "REQ-1"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-create-or-update-frontend-pages-components-to-use-the-new-e-commerce-hooks-so-the-ui-no-longer-relies-on-mock-local-only-data-for-shopping-orders-and-vendor-flows-product-browsing-uses-listproducts-listproductsbyvendor-vendor-onboarding-dashboard-uses-createvendor-getmyvendor-getmyvendorbalance-withdrawvendorbalance-and-order-history-detail-uses-listmyorders-getorder-and-listordersbyvendor-updateorderstatus-for-vendor-owners-admin-as-applicable",
-      "title": "Create or update frontend pages/components to use the new e-commerce hooks so the UI no longer relies on mock/local-only data for shopping, orders, and vendor flows: product browsing uses listProducts/listProductsByVendor, vendor onboarding/dashboard uses createVendor/getMyVendor/getMyVendorBalance/withdrawVendorBalance, and order history/detail uses listMyOrders/getOrder (and listOrdersByVendor/updateOrderStatus for vendor owners/admin as applicable).",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-fix-user-facing-pages-that-currently-call-the-admin-only-analytics-endpoint-getallanalytics-so-non-admin-users-do-not-trigger-backend-authorization-traps-only-admins-should-call-usegetallanalytics-and-non-admin-experiences-should-gracefully-render-with-empty-limited-analytics-data",
-      "title": "Fix user-facing pages that currently call the admin-only analytics endpoint getAllAnalytics so non-admin users do not trigger backend authorization traps; only admins should call useGetAllAnalytics, and non-admin experiences should gracefully render with empty/limited analytics data.",
-      "reqIds": [
-        "REQ-3"
+        "REQ-6"
       ],
       "version": 1
     }
@@ -309,38 +18,28 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Wire the React frontend to the newly added backend canister endpoints (add/update hooks, queries/mutations, and integrate into relevant pages/components).",
+      "summary": "Enhance/improve how vendors can be assigned to categories.",
       "reqIds": [],
-      "status": "in_progress"
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Normalize and de-duplicate vendor categories on write in the backend (createVendor and updateVendorProfile) so stored vendor categories are consistent regardless of casing/extra whitespace.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Refine backend category filtering for listPublicVendorsByCategory so category matching is consistent with the frontend’s normalization rules and does not rely on substring matching.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "status": "pending"
     }
   ],
-  "architectural_notes": [
-    "Two-tier architecture: React/TypeScript SPA frontend + Motoko IC canister backend.",
-    "Frontend data layer uses @tanstack/react-query (queries/mutations + cache invalidation) wrapped in domain-specific hooks in useQueries.ts.",
-    "Frontend routing uses TanStack Router with a shared Layout (Header/Footer) and page routes for marketplace, wallet, rewards, discovery hub, global dashboard, and admin.",
-    "Authentication uses DFINITY Internet Identity via a context provider; the authenticated Identity is used to create an agent/actor for canister calls.",
-    "Role-based authorization is implemented in Motoko (admin/user/guest) and exposed via a MixinAuthorization mixin; first caller with correct secret becomes admin.",
-    "Admin secret bootstrap uses an environment variable (CAFFEINE_ADMIN_TOKEN) on the canister and a URL hash secret parameter (caffeineAdminToken) on the frontend.",
-    "Backend modules are composed via Motoko mixins (authorization mixin, blob storage mixin) and helper modules (Stripe, HTTP outcalls).",
-    "Stripe integration uses IC HTTP outcalls (ic:aaaaa-aa http_request) with a transform function to strip headers; request cycles are explicitly allocated.",
-    "Binary assets (logos) are handled as ExternalBlob on the backend and passed to the frontend; frontend converts uploaded files to bytes and uses ExternalBlob.fromBytes.",
-    "UI stack uses TailwindCSS + shadcn-style UI components, Lucide icons, and next-themes for dark/light theming."
-  ],
-  "known_issues": [
-    "Analytics permission mismatch: backend getAllAnalytics/getAnalytics are admin-only, but multiple user-facing pages (MarketplacePage, DiscoveryHubPage, RecommendationsPanel) call useGetAllAnalytics; non-admin users will hit backend traps/errors.",
-    "Stripe session ID mismatch: backend main.createCheckoutSession stores stripeSessions keyed by the full Stripe JSON response (returned from Stripe.createCheckoutSession), but clients typically use session.id; getStripeSessionStatus expects the same key, so status lookup is likely broken.",
-    "Stripe allowedCountries encoding bug: stripe.mo sets shipping_address_collection[allowed_countries][0] for every country instead of incrementing the index, so only one country may be effective.",
-    "RewardsPage uses hardcoded mock campaign IDs that are not created in the backend; join/complete will trap with \"Campaign not found\" unless campaigns are seeded/created first.",
-    "Reward campaign logic allows duplicate joins (no dedupe) and allows repeated “complete” claims (no “already claimed” tracking), enabling unlimited reward crediting.",
-    "Backend state is held in in-memory Maps (not stable variables); data will not persist across canister upgrades without additional stable storage handling.",
-    "RevenueShareConfigModal collects a configName but backend RevenueShareConfig has no name field; the value is unused and not persisted.",
-    "Revenue share percentages: UI allows decimals and validates to 100% using floats, but it rounds to integer Nat/BigInt when sending, losing precision and potentially breaking intended splits.",
-    "MarketplacePage has side effects inside useMemo (toggling admin panel based on window.location.hash) and triggers view tracking/state updates during render in list view; both are React anti-patterns and can cause render-loop or warning issues.",
-    "frontend/src/components/RevenueShareConfigModal.tsx defines a custom useMemo wrapper and imports React at the bottom; unusual structure increases risk of lint/build issues."
-  ],
-  "isFixRequest": false,
-  "gameProjectType": "none",
-  "projectName": "CitizensCo CAppStores",
+  "projectName": "Enhance vendor category assignment and discovery",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

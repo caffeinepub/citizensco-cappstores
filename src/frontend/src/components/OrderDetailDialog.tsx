@@ -1,4 +1,4 @@
-import { useGetOrder } from '../hooks/useQueries';
+import { useGetOrders } from '../hooks/useQueries';
 import {
   Dialog,
   DialogContent,
@@ -16,15 +16,18 @@ interface OrderDetailDialogProps {
 }
 
 export default function OrderDetailDialog({ orderId, open, onClose }: OrderDetailDialogProps) {
-  const { data: order, isLoading } = useGetOrder(orderId);
+  const { data: orders = [], isLoading } = useGetOrders();
+  const order = orders.find((o) => o.id === orderId);
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'fulfilled':
+      case 'delivered':
+      case 'paid':
         return 'default';
       case 'pending':
         return 'secondary';
-      case 'declined':
+      case 'shipped':
+        return 'outline';
       case 'cancelled':
         return 'destructive';
       default:
@@ -92,7 +95,7 @@ export default function OrderDetailDialog({ orderId, open, onClose }: OrderDetai
 
             <div>
               <p className="text-sm text-muted-foreground">Created At</p>
-              <p className="text-sm">{Number(order.createdAt) === 0 ? 'N/A' : new Date(Number(order.createdAt)).toLocaleString()}</p>
+              <p className="text-sm">{Number(order.createdAt) === 0 ? 'N/A' : new Date(Number(order.createdAt) / 1000000).toLocaleString()}</p>
             </div>
           </div>
         )}

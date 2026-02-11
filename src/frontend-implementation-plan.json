@@ -1,95 +1,22 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Wire React Query hooks and UI to new e-commerce backend functions",
+  "title": "Improve vendor category suggestions discoverability and keyboard UX",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Add React Query query/mutation hooks for all new e-commerce backend functions using the existing useActor() pattern, with correct cache invalidation and actor-availability gating.",
+      "id": "REQ-6",
+      "summary": "Make VendorCategoryInput suggestions visible on focus (even with empty input) and harden keyboard + dismiss behaviors for the dropdown.",
       "acceptanceCriteria": [
-        "useQueries.ts exports query/mutation hooks for each listed backend method, using the existing useActor() pattern.",
-        "Mutations invalidate the correct cached queries (e.g., product lists after create/update; order lists after create/status update; vendor balance after withdraw/credit).",
-        "Hooks are disabled when the actor is unavailable, consistent with existing hooks in useQueries.ts."
+        "When the category input receives focus, the suggestions dropdown can appear even when the input is empty (showing up to the configured max suggestions), and it still filters as the user types.",
+        "ArrowUp/ArrowDown navigation visibly highlights the selected suggestion, and Enter adds the highlighted suggestion when one is selected.",
+        "Escape closes the suggestions dropdown and clears the highlighted suggestion index.",
+        "Clicking outside the dropdown closes it, without removing any already-selected category badges."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useQueries.ts",
+          "path": "frontend/src/components/vendor/VendorCategoryInput.tsx",
           "operation": "modify",
-          "description": "Add e-commerce hooks backed by the existing useActor() pattern: mutations for createVendor, createProduct, updateProduct, createOrder, updateOrderStatus, creditVendor (admin-only), withdrawVendorBalance; queries for getMyVendor, getVendorById, listProducts, listProductsByVendor, getOrder, listMyOrders, listOrdersByVendor, getMyVendorBalance. Ensure all queries are enabled only when the actor is available (and any required parameter is present), and ensure mutations invalidate the appropriate query keys (vendor/profile + vendor balance; product lists; order lists; order detail)."
-        }
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "summary": "Create/update frontend pages and components to use the new e-commerce hooks for product browsing, vendor onboarding/dashboard, and order history/detail flows (including vendor order management where applicable).",
-      "acceptanceCriteria": [
-        "A signed-in user can create a vendor profile via createVendor and then see it via getMyVendor without a page refresh.",
-        "Product browsing renders data returned from listProducts (and listProductsByVendor when filtered by vendor).",
-        "Checkout/order placement calls createOrder and the resulting order appears in the buyer’s order list via listMyOrders.",
-        "Order detail pages (or dialogs) fetch fresh data via getOrder rather than relying on previously passed state.",
-        "Vendor order management (if present) loads via listOrdersByVendor and updates via updateOrderStatus with UI feedback for success/failure."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/ShopPage.tsx",
-          "operation": "create",
-          "description": "Create a shop/product browsing page that uses the new hooks: listProducts for the default view and listProductsByVendor when a vendor filter is applied. Provide product cards with an action to place an order via createOrder (with quantity input), and show success/failure UI feedback based on mutation state."
-        },
-        {
-          "path": "frontend/src/pages/OrdersPage.tsx",
-          "operation": "create",
-          "description": "Create an orders page for buyers that uses listMyOrders to render order history, and supports selecting an order to view details by fetching fresh data via getOrder (e.g., via a dialog/drawer or an inline detail panel)."
-        },
-        {
-          "path": "frontend/src/components/OrderDetailDialog.tsx",
-          "operation": "create",
-          "description": "Create an order detail dialog component that receives an orderId and uses the getOrder hook to fetch current order data, rendering loading/empty states and avoiding reliance on previously passed order objects."
-        },
-        {
-          "path": "frontend/src/pages/VendorPage.tsx",
-          "operation": "create",
-          "description": "Create a vendor onboarding/dashboard page that uses getMyVendor to show onboarding vs dashboard; supports vendor creation via createVendor; shows vendor balance via getMyVendorBalance and allows withdrawing via withdrawVendorBalance with UI feedback. If vendor order management is shown, load orders via listOrdersByVendor and update status via updateOrderStatus, with success/failure feedback."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Wire the new e-commerce pages into routing by adding routes for ShopPage, OrdersPage, and VendorPage, ensuring they are reachable from navigation and not orphaned."
-        },
-        {
-          "path": "frontend/src/components/Header.tsx",
-          "operation": "modify",
-          "description": "Add navigation entries to reach the new e-commerce flows (Shop, Orders, Vendor) for authenticated users, keeping existing admin navigation intact."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Prevent non-admin users from calling admin-only analytics (getAllAnalytics) by gating calls to useGetAllAnalytics and rendering safe defaults for non-admin experiences while keeping admin analytics intact.",
-      "acceptanceCriteria": [
-        "MarketplacePage and DiscoveryHubPage do not invoke getAllAnalytics for non-admin users (no unauthorized errors in console/network).",
-        "RecommendationsPanel continues to render for non-admins; if analytics is unavailable, it uses safe defaults (e.g., zeros) without crashing.",
-        "AdminPanel continues to use getAllAnalytics and displays analytics normally for admins."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Update useGetAllAnalytics to support admin-only usage without triggering backend calls for non-admins (e.g., accept an optional enabled flag and ensure the query is disabled when not enabled). Keep behavior unchanged for admin contexts like AdminPanel."
-        },
-        {
-          "path": "frontend/src/pages/MarketplacePage.tsx",
-          "operation": "modify",
-          "description": "Gate analytics fetching so non-admin users do not trigger getAllAnalytics: use isAdmin to disable the useGetAllAnalytics query and pass safe default analytics data (empty array) into RecommendationsPanel and any other analytics-dependent UI."
-        },
-        {
-          "path": "frontend/src/pages/DiscoveryHubPage.tsx",
-          "operation": "modify",
-          "description": "Gate analytics fetching so non-admin users do not trigger getAllAnalytics: add an admin check and disable the analytics query when not admin; ensure all computations use safe defaults (e.g., zeros/empty arrays) so the page renders without crashing."
-        },
-        {
-          "path": "frontend/src/components/RecommendationsPanel.tsx",
-          "operation": "modify",
-          "description": "Ensure the recommendation computation remains robust when analytics is empty/unavailable (already uses zeros); align any assumptions so it never crashes when analytics data is absent for non-admin users."
+          "description": "Update suggestions dropdown rendering and interaction logic: render dropdown when focused even if input is empty (still capped by the existing max suggestions), open dropdown on ArrowUp/ArrowDown when applicable, ensure selectedSuggestionIndex is reset when closing (Escape and outside-click), and clamp/reset highlight when filteredSuggestions changes so keyboard navigation remains resilient."
         }
       ]
     }

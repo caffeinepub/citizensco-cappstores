@@ -1,74 +1,72 @@
 {
   "kind": "build_request",
-  "title": "Wire React frontend to new backend canister endpoints",
+  "title": "Enhance vendor category assignment and discovery",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-1",
-      "text": "Add React Query hooks in frontend/src/hooks/useQueries.ts for the new e-commerce backend endpoints exposed by backend/main.mo: createVendor, getMyVendor, getVendorById, createProduct, updateProduct, listProducts, listProductsByVendor, createOrder, getOrder, updateOrderStatus, listMyOrders, listOrdersByVendor, creditVendor (admin-only), getMyVendorBalance, and withdrawVendorBalance.",
-      "target": "frontend",
+      "id": "REQ-4",
+      "text": "Normalize and de-duplicate vendor categories on write in the backend (createVendor and updateVendorProfile) so stored vendor categories are consistent regardless of casing/extra whitespace.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "recent-messages-4"
+          "msg-1"
         ],
         "quotes": [
-          "start wiring the frontend to these new backend endpoints next"
+          "Yes"
         ]
       },
       "acceptanceCriteria": [
-        "useQueries.ts exports query/mutation hooks for each listed backend method, using the existing useActor() pattern.",
-        "Mutations invalidate the correct cached queries (e.g., product lists after create/update; order lists after create/status update; vendor balance after withdraw/credit).",
-        "Hooks are disabled when the actor is unavailable, consistent with existing hooks in useQueries.ts."
+        "When createVendor is called with categories that differ only by casing and/or extra whitespace, only one normalized category is stored.",
+        "When updateVendorProfile is called with categories that include leading/trailing spaces or multiple internal spaces, the stored categories are trimmed and whitespace-collapsed.",
+        "Backend rejects any empty/whitespace-only category entries with a clear error (trap message)."
       ]
     },
     {
-      "id": "REQ-2",
-      "text": "Create or update frontend pages/components to use the new e-commerce hooks so the UI no longer relies on mock/local-only data for shopping, orders, and vendor flows: product browsing uses listProducts/listProductsByVendor, vendor onboarding/dashboard uses createVendor/getMyVendor/getMyVendorBalance/withdrawVendorBalance, and order history/detail uses listMyOrders/getOrder (and listOrdersByVendor/updateOrderStatus for vendor owners/admin as applicable).",
-      "target": "frontend",
+      "id": "REQ-5",
+      "text": "Refine backend category filtering for listPublicVendorsByCategory so category matching is consistent with the frontend’s normalization rules and does not rely on substring matching.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "recent-messages-4"
+          "msg-1"
         ],
         "quotes": [
-          "start wiring the frontend to these new backend endpoints next"
+          "Yes"
         ]
       },
       "acceptanceCriteria": [
-        "A signed-in user can create a vendor profile via createVendor and then see it via getMyVendor without a page refresh.",
-        "Product browsing renders data returned from listProducts (and listProductsByVendor when filtered by vendor).",
-        "Checkout/order placement calls createOrder and the resulting order appears in the buyer’s order list via listMyOrders.",
-        "Order detail pages (or dialogs) fetch fresh data via getOrder rather than relying on previously passed state.",
-        "Vendor order management (if present) loads via listOrdersByVendor and updates via updateOrderStatus with UI feedback for success/failure."
+        "Filtering by category returns vendors whose stored categories match the requested category using case-insensitive, whitespace-normalized equality.",
+        "Filtering by category does not return vendors solely due to partial/substring matches (e.g., filtering \"Art\" does not match \"Martial Arts\" unless that is an exact normalized category)."
       ]
     },
     {
-      "id": "REQ-3",
-      "text": "Fix user-facing pages that currently call the admin-only analytics endpoint getAllAnalytics so non-admin users do not trigger backend authorization traps; only admins should call useGetAllAnalytics, and non-admin experiences should gracefully render with empty/limited analytics data.",
+      "id": "REQ-6",
+      "text": "Improve the vendor category selection UX in the VendorCategoryInput component so suggestions are easier to discover and keyboard navigation is more resilient.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "recent-messages-4"
+          "msg-1"
         ],
         "quotes": [
-          "start wiring the frontend to these new backend endpoints next"
+          "Yes"
         ]
       },
       "acceptanceCriteria": [
-        "MarketplacePage and DiscoveryHubPage do not invoke getAllAnalytics for non-admin users (no unauthorized errors in console/network).",
-        "RecommendationsPanel continues to render for non-admins; if analytics is unavailable, it uses safe defaults (e.g., zeros) without crashing.",
-        "AdminPanel continues to use getAllAnalytics and displays analytics normally for admins."
+        "When the category input receives focus, the suggestions dropdown can appear even when the input is empty (showing up to the configured max suggestions), and it still filters as the user types.",
+        "ArrowUp/ArrowDown navigation visibly highlights the selected suggestion, and Enter adds the highlighted suggestion when one is selected.",
+        "Escape closes the suggestions dropdown and clears the highlighted suggestion index.",
+        "Clicking outside the dropdown closes it, without removing any already-selected category badges."
       ]
     }
   ],
   "constraints": [
-    "Do not edit files under frontend/src/components/ui (compose them as-is).",
-    "Do not modify immutable hook files: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx.",
-    "Backend must remain a single Motoko actor; do not introduce additional backend services."
+    "Backend must remain a single Motoko actor in backend/main.mo (no additional backend services).",
+    "Do not edit frontend immutable paths: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, frontend/src/components/ui (compose these components instead).",
+    "Use English for any user-facing text."
   ],
   "nonGoals": [
-    "Do not change backend authorization rules or add new backend endpoints as part of this request.",
-    "Do not address Stripe session/status keying, Stripe allowedCountries encoding, or long-term stable storage persistence unless explicitly requested later.",
-    "Do not redesign the overall IA/UX beyond what is required to connect existing UI to the new endpoints."
+    "Do not add third-party authentication providers (only Internet Identity is supported).",
+    "Do not introduce external databases or non-Motoko backend code.",
+    "Do not implement real-time updates (no WebSockets/push)."
   ],
   "imageRequirements": {
     "required": [],

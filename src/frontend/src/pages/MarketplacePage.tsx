@@ -16,30 +16,24 @@ import FeaturesSection from '../components/FeaturesSection';
 import RecommendationsPanel from '../components/RecommendationsPanel';
 import ProfileSetupModal from '../components/ProfileSetupModal';
 
-type SortOption = 'name-asc' | 'name-desc' | 'category-asc' | 'newest';
+type SortOption = 'name-asc' | 'name-desc' | 'newest';
 
 export default function MarketplacePage() {
   const { identity } = useInternetIdentity();
-  const { data: isAdmin } = useIsCallerAdmin();
+  const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
   const { data: projectEntries = [], isLoading } = useGetProjectEntries();
-  const { data: analytics = [] } = useGetAllAnalytics(!!isAdmin);
+  const { data: analytics = [] } = useGetAllAnalytics();
   const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
   const trackView = useTrackProjectView();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [trackedViews, setTrackedViews] = useState<Set<string>>(new Set());
 
   const isAuthenticated = !!identity;
+  // Only show profile setup when authenticated, actor is ready, query has fetched, and profile is null
   const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
-
-  // Extract unique categories
-  const categories = useMemo(() => {
-    const cats = new Set(projectEntries.map(entry => entry.category));
-    return ['all', ...Array.from(cats)];
-  }, [projectEntries]);
 
   // Track view for a project (only once per session)
   const handleTrackView = useCallback((projectId: string) => {
@@ -54,8 +48,7 @@ export default function MarketplacePage() {
     let filtered = projectEntries.filter(entry => {
       const matchesSearch = entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            entry.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || entry.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      return matchesSearch;
     });
 
     // Sort projects
@@ -65,8 +58,6 @@ export default function MarketplacePage() {
           return a.name.localeCompare(b.name);
         case 'name-desc':
           return b.name.localeCompare(a.name);
-        case 'category-asc':
-          return a.category.localeCompare(b.category);
         case 'newest':
           // Assuming newer entries have higher IDs (simple heuristic)
           return b.id.localeCompare(a.id);
@@ -76,7 +67,7 @@ export default function MarketplacePage() {
     });
 
     return sorted;
-  }, [projectEntries, searchQuery, selectedCategory, sortBy]);
+  }, [projectEntries, searchQuery, sortBy]);
 
   // Check if admin panel should be shown
   useMemo(() => {
@@ -104,16 +95,16 @@ export default function MarketplacePage() {
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
                 <div className="flex items-center gap-2 text-sm">
-                  <TrendingUp className="h-4 w-4 text-chart-1" />
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <span>AI-Powered Discovery</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Star className="h-4 w-4 text-primary" />
+                  <span>Personalized Recommendations</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <BarChart3 className="h-4 w-4 text-primary" />
                   <span>Real-time Analytics</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Star className="h-4 w-4 text-chart-2" />
-                  <span>User Ratings</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <BarChart3 className="h-4 w-4 text-chart-3" />
-                  <span>Performance Tracking</span>
                 </div>
               </div>
             </CardContent>
@@ -123,205 +114,97 @@ export default function MarketplacePage() {
     );
   }
 
-  if (showAdmin && isAdmin) {
+  if (showAdmin) {
     return <AdminPanel onClose={() => setShowAdmin(false)} />;
   }
 
   return (
-    <div className="min-h-[calc(100vh-8rem)]">
-      <HeroSection />
-      
-      <div className="container py-12">
-        {/* Recommendations Panel */}
-        <RecommendationsPanel 
+    <div className="container py-12">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">DApp Marketplace</h1>
+            <p className="text-muted-foreground">Discover and explore decentralized applications</p>
+          </div>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <>
+                <Button variant="outline" onClick={() => setShowAdmin(true)}>
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Admin Panel
+                </Button>
+                <Button onClick={() => setAddModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add DApp
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* AI Recommendations Panel */}
+        <RecommendationsPanel
           projectEntries={projectEntries}
           analytics={analytics}
           userProfile={userProfile}
           onTrackView={handleTrackView}
         />
 
-        {/* Search, Filter, and Sort Section */}
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search DApps by name or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
+        {/* Search and Filter Controls */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search DApps..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
               <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full md:w-[200px]">
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="name-asc">Name (A-Z)</SelectItem>
                   <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                  <SelectItem value="category-asc">Category</SelectItem>
                   <SelectItem value="newest">Newest First</SelectItem>
                 </SelectContent>
               </Select>
-              {isAdmin && (
-                <Button onClick={() => setAddModalOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add DApp
-                </Button>
-              )}
             </div>
-          </div>
-
-          {/* Category Filter */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map(category => (
-              <Badge
-                key={category}
-                variant={selectedCategory === category ? 'default' : 'outline'}
-                className="cursor-pointer capitalize"
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </Badge>
-            ))}
-          </div>
-
-          {/* Results count */}
-          <div className="text-sm text-muted-foreground">
-            Showing {filteredAndSortedProjects.length} of {projectEntries.length} DApps
-          </div>
-        </div>
-
-        {/* DApps Grid */}
-        <Tabs defaultValue="grid" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="grid">Grid View</TabsTrigger>
-            <TabsTrigger value="list">List View</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="grid">
-            {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardHeader>
-                      <div className="h-24 w-24 bg-muted rounded-lg mb-4 mx-auto" />
-                      <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                      <div className="h-4 bg-muted rounded w-full" />
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredAndSortedProjects.length === 0 ? (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <img
-                    src="/assets/generated/empty-state.dim_300x200.png"
-                    alt="No DApps found"
-                    className="mx-auto mb-4 opacity-50"
-                  />
-                  <p className="text-muted-foreground">
-                    {searchQuery || selectedCategory !== 'all'
-                      ? 'No DApps match your search criteria'
-                      : 'No DApps available yet'}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAndSortedProjects.map(entry => (
-                  <DAppCard key={entry.id} entry={entry} onView={handleTrackView} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="list">
-            {isLoading ? (
-              <div className="space-y-4">
-                {[...Array(6)].map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardHeader className="flex-row items-center gap-4">
-                      <div className="h-16 w-16 bg-muted rounded-lg" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-6 bg-muted rounded w-1/3" />
-                        <div className="h-4 bg-muted rounded w-2/3" />
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredAndSortedProjects.length === 0 ? (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <img
-                    src="/assets/generated/empty-state.dim_300x200.png"
-                    alt="No DApps found"
-                    className="mx-auto mb-4 opacity-50"
-                  />
-                  <p className="text-muted-foreground">
-                    {searchQuery || selectedCategory !== 'all'
-                      ? 'No DApps match your search criteria'
-                      : 'No DApps available yet'}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {filteredAndSortedProjects.map(entry => {
-                  // Track view for list items too
-                  if (!trackedViews.has(entry.id)) {
-                    handleTrackView(entry.id);
-                  }
-                  
-                  return (
-                    <Card key={entry.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="flex-row items-center gap-4">
-                        <img
-                          src={entry.logo.getDirectURL()}
-                          alt={entry.name}
-                          className="h-16 w-16 rounded-lg object-cover"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CardTitle className="text-lg">{entry.name}</CardTitle>
-                            <Badge variant="outline" className="capitalize">
-                              {entry.category}
-                            </Badge>
-                          </div>
-                          <CardDescription className="line-clamp-2">
-                            {entry.description}
-                          </CardDescription>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="gap-2"
-                          onClick={async () => {
-                            try {
-                              await trackView.mutateAsync(entry.id);
-                            } catch (error) {
-                              console.error('Failed to track click:', error);
-                            }
-                            window.open(entry.url, '_blank', 'noopener,noreferrer');
-                          }}
-                        >
-                          Launch
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </CardHeader>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </div>
 
-      {addModalOpen && <AddDAppModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />}
+      {/* DApp Grid */}
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading DApps...</p>
+        </div>
+      ) : filteredAndSortedProjects.length === 0 ? (
+        <Card className="text-center py-12">
+          <CardContent>
+            <Search className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            <CardTitle className="mb-2">No DApps Found</CardTitle>
+            <p className="text-muted-foreground">
+              {searchQuery ? 'Try adjusting your search query' : 'No DApps available yet'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedProjects.map((entry) => (
+            <DAppCard key={entry.id} entry={entry} onView={handleTrackView} />
+          ))}
+        </div>
+      )}
+
+      {/* Modals */}
+      <AddDAppModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
       {showProfileSetup && <ProfileSetupModal />}
     </div>
   );

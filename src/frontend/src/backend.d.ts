@@ -7,34 +7,22 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export class ExternalBlob {
-    getBytes(): Promise<Uint8Array<ArrayBuffer>>;
-    getDirectURL(): string;
-    static fromURL(url: string): ExternalBlob;
-    static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
-    withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
-}
-export interface RevenueShareConfig {
-    id: string;
-    participants: Array<RevenueShareParticipant>;
-}
 export interface ProjectEntry {
     id: string;
-    url: string;
-    revenueShareConfigId?: string;
-    logo: ExternalBlob;
-    name: string;
-    description: string;
-    category: string;
-}
-export interface Product {
-    id: string;
-    imageBlob: ExternalBlob;
-    inventory: bigint;
+    clicks: bigint;
+    views: bigint;
+    owner: Principal;
     name: string;
     createdAt: bigint;
     description: string;
-    vendorId: string;
+}
+export interface Product {
+    id: string;
+    name: string;
+    createdAt: bigint;
+    description: string;
+    stock: bigint;
+    vendorId: Principal;
     price: bigint;
 }
 export interface TransformationOutput {
@@ -42,20 +30,15 @@ export interface TransformationOutput {
     body: Uint8Array;
     headers: Array<http_header>;
 }
-export interface AnalyticsEntry {
-    clicks: bigint;
-    views: bigint;
-    projectId: string;
-}
 export interface Order {
     id: string;
     status: OrderStatus;
     createdAt: bigint;
     productId: string;
     totalAmount: bigint;
-    vendorId: string;
-    buyerPrincipal: Principal;
+    vendorId: Principal;
     quantity: bigint;
+    customerId: Principal;
 }
 export interface http_header {
     value: string;
@@ -65,11 +48,6 @@ export interface http_request_result {
     status: bigint;
     body: Uint8Array;
     headers: Array<http_header>;
-}
-export interface Wallet {
-    stripeBalance: bigint;
-    icpBalance: bigint;
-    transactionHistory: Array<string>;
 }
 export interface ShoppingItem {
     productName: string;
@@ -81,11 +59,6 @@ export interface ShoppingItem {
 export interface TransformationInput {
     context: Uint8Array;
     response: http_request_result;
-}
-export interface RevenueShareParticipant {
-    principal?: Principal;
-    stripeId?: string;
-    percentage: bigint;
 }
 export interface RewardCampaign {
     id: string;
@@ -112,22 +85,26 @@ export interface StripeConfiguration {
     secretKey: string;
 }
 export interface Vendor {
-    id: string;
     bio: string;
+    categories: Array<string>;
+    balance: bigint;
     displayName: string;
-    ownerPrincipal: Principal;
+    published: boolean;
     createdAt: bigint;
+    vendorOwner: Principal;
+    principalId: Principal;
 }
 export interface UserProfile {
     name: string;
+    createdAt: bigint;
     email?: string;
-    preferences: Array<string>;
 }
 export enum OrderStatus {
+    shipped = "shipped",
     cancelled = "cancelled",
     pending = "pending",
-    fulfilled = "fulfilled",
-    declined = "declined"
+    paid = "paid",
+    delivered = "delivered"
 }
 export enum RewardCampaignType {
     reward = "reward",
@@ -152,41 +129,45 @@ export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     completeRewardCampaign(campaignId: string): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
-    createOrder(vendorId: string, productId: string, quantity: bigint): Promise<string>;
-    createProduct(vendorId: string, name: string, description: string, price: bigint, imageBlob: ExternalBlob, inventory: bigint): Promise<string>;
-    createRevenueShareConfig(config: RevenueShareConfig): Promise<void>;
+    createOrder(order: Order): Promise<void>;
+    createProduct(product: Product): Promise<void>;
     createRewardCampaign(campaign: RewardCampaign): Promise<void>;
-    createVendor(displayName: string, bio: string): Promise<string>;
-    creditVendor(vendorId: string, amount: bigint): Promise<void>;
-    depositToWallet(icpAmount: bigint, stripeAmount: bigint): Promise<void>;
-    getAllAnalytics(): Promise<Array<AnalyticsEntry>>;
-    getAnalytics(projectId: string): Promise<AnalyticsEntry | null>;
+    createVendor(displayName: string, bio: string, categories: Array<string>): Promise<void>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    getMyVendor(): Promise<Vendor | null>;
-    getMyVendorBalance(): Promise<bigint>;
+    getCampaignsState(): Promise<{
+        users: Array<UserProfile>;
+        campaigns: Array<RewardCampaign>;
+    }>;
     getOrder(orderId: string): Promise<Order | null>;
-    getProjectEntries(): Promise<Array<ProjectEntry>>;
-    getRevenueShareConfig(id: string): Promise<RevenueShareConfig | null>;
+    getProjectAnalytics(projectId: string): Promise<{
+        clicks: bigint;
+        views: bigint;
+    } | null>;
+    getPublicVendor(vendorId: Principal): Promise<Vendor | null>;
+    getRewardCampaignsSample(): Promise<Array<RewardCampaign>>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
-    getVendorById(id: string): Promise<Vendor | null>;
-    getWallet(): Promise<Wallet | null>;
+    getVendor(vendorId: Principal): Promise<Vendor | null>;
+    getVendorBalance(vendorId: Principal): Promise<bigint>;
+    getVendorOrders(): Promise<Array<Order>>;
     isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
     joinRewardCampaign(campaignId: string): Promise<void>;
-    listMyOrders(): Promise<Array<Order>>;
-    listOrdersByVendor(vendorId: string): Promise<Array<Order>>;
+    listOrders(): Promise<Array<Order>>;
     listProducts(): Promise<Array<Product>>;
-    listProductsByVendor(vendorId: string): Promise<Array<Product>>;
+    listProjectEntries(): Promise<Array<ProjectEntry>>;
+    listPublicVendors(): Promise<Array<Vendor>>;
+    listPublicVendorsByCategory(category: string): Promise<Array<Vendor>>;
+    publishVendor(): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
     trackProjectClick(projectId: string): Promise<void>;
     trackProjectView(projectId: string): Promise<void>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
-    updateOrderStatus(orderId: string, newStatus: OrderStatus): Promise<void>;
-    updateProduct(productId: string, name: string, description: string, price: bigint, imageBlob: ExternalBlob, inventory: bigint): Promise<void>;
-    updateRevenueShareConfig(config: RevenueShareConfig): Promise<void>;
-    withdrawFromWallet(icpAmount: bigint, stripeAmount: bigint): Promise<void>;
+    unpublishVendor(): Promise<void>;
+    updateOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
+    updateProduct(productId: string, product: Product): Promise<void>;
+    updateVendorProfile(displayName: string, bio: string, categories: Array<string>): Promise<void>;
     withdrawVendorBalance(amount: bigint): Promise<void>;
 }

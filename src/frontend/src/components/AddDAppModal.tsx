@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { useAddProjectEntry, useGetProjectEntries } from '../hooks/useQueries';
+import { useAddProjectEntry } from '../hooks/useQueries';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ExternalBlob } from '../backend';
+import { ExternalBlob, ProjectEntry as BackendProjectEntry } from '../backend';
 
 interface AddDAppModalProps {
   open: boolean;
@@ -15,6 +15,7 @@ interface AddDAppModalProps {
 }
 
 export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
+  const { identity } = useInternetIdentity();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
@@ -38,37 +39,40 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
       return;
     }
 
+    if (!identity) {
+      toast.error('Please log in to add a DApp');
+      return;
+    }
+
     try {
       setUploading(true);
       
-      // Convert file to bytes
       const arrayBuffer = await logoFile.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       const logo = ExternalBlob.fromBytes(bytes);
 
-      const entry = {
+      const entry: BackendProjectEntry = {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: name.trim(),
         description: description.trim(),
-        url: url.trim(),
-        category: category.trim(),
-        logo,
-        revenueShareConfigId: revenueShareConfigId || undefined,
+        owner: identity.getPrincipal(),
+        views: BigInt(0),
+        clicks: BigInt(0),
+        createdAt: BigInt(Date.now()),
       };
 
       await addEntry.mutateAsync(entry);
       toast.success('DApp added successfully!');
       onClose();
       
-      // Reset form
       setName('');
       setDescription('');
       setUrl('');
       setCategory('');
       setLogoFile(null);
       setRevenueShareConfigId('');
-    } catch (error) {
-      toast.error('Failed to add DApp');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add DApp');
       console.error(error);
     } finally {
       setUploading(false);

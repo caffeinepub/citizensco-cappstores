@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Settings, BarChart3, DollarSign, Megaphone, TrendingUp, Eye, MousePointerClick, Wallet, Gift, Activity, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useGetAllAnalytics, useGetProjectEntries } from '../hooks/useQueries';
+import { useGetAllAnalytics, useListProjectEntries } from '../hooks/useQueries';
 import { useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,7 @@ interface AdminPanelProps {
 
 export default function AdminPanel({ onClose }: AdminPanelProps) {
   const { data: analytics = [], isLoading: analyticsLoading } = useGetAllAnalytics();
-  const { data: projectEntries = [] } = useGetProjectEntries();
+  const { data: projectEntries = [] } = useListProjectEntries();
   const [revenueConfigModalOpen, setRevenueConfigModalOpen] = useState(false);
   const [rewardCampaignModalOpen, setRewardCampaignModalOpen] = useState(false);
 
@@ -42,8 +42,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       return {
         ...analytic,
         projectName: project?.name || 'Unknown',
-        projectCategory: project?.category || 'Unknown',
-        revenueShareConfigId: project?.revenueShareConfigId,
       };
     }).sort((a, b) => Number(b.clicks) - Number(a.clicks));
   }, [analytics, projectEntries]);
@@ -159,7 +157,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     <TableRow>
                       <TableHead>Rank</TableHead>
                       <TableHead>DApp Name</TableHead>
-                      <TableHead>Category</TableHead>
                       <TableHead className="text-right">Views</TableHead>
                       <TableHead className="text-right">Clicks</TableHead>
                       <TableHead className="text-right">CTR</TableHead>
@@ -174,11 +171,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <TableRow key={item.projectId}>
                           <TableCell className="font-medium">#{index + 1}</TableCell>
                           <TableCell>{item.projectName}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {item.projectCategory}
-                            </Badge>
-                          </TableCell>
                           <TableCell className="text-right">{Number(item.views).toLocaleString()}</TableCell>
                           <TableCell className="text-right">{Number(item.clicks).toLocaleString()}</TableCell>
                           <TableCell className="text-right">{ctr}%</TableCell>
@@ -237,11 +229,11 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     </Card>
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Most Popular Category</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total DApps</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold capitalize">
-                          {detailedAnalytics[0]?.projectCategory || 'N/A'}
+                        <div className="text-2xl font-bold">
+                          {stats.totalDApps}
                         </div>
                       </CardContent>
                     </Card>
@@ -257,7 +249,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <TableHeader>
                           <TableRow>
                             <TableHead>DApp Name</TableHead>
-                            <TableHead>Category</TableHead>
                             <TableHead className="text-right">Views</TableHead>
                             <TableHead className="text-right">Clicks</TableHead>
                             <TableHead className="text-right">CTR</TableHead>
@@ -271,11 +262,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                             return (
                               <TableRow key={item.projectId}>
                                 <TableCell className="font-medium">{item.projectName}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="capitalize">
-                                    {item.projectCategory}
-                                  </Badge>
-                                </TableCell>
                                 <TableCell className="text-right">{Number(item.views).toLocaleString()}</TableCell>
                                 <TableCell className="text-right">{Number(item.clicks).toLocaleString()}</TableCell>
                                 <TableCell className="text-right">{ctr}%</TableCell>
@@ -293,11 +279,25 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         </TabsContent>
 
         <TabsContent value="revenue" className="space-y-6">
-          <RevenueDashboard 
-            projectEntries={projectEntries}
-            analytics={analytics}
-            onCreateConfig={() => setRevenueConfigModalOpen(true)}
-          />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Revenue Management
+              </CardTitle>
+              <CardDescription>
+                Configure revenue sharing and track earnings distribution
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-6">
+                <Button onClick={() => setRevenueConfigModalOpen(true)}>
+                  Create Revenue Share Configuration
+                </Button>
+              </div>
+              <RevenueDashboard projectEntries={projectEntries} analytics={analytics} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="wallets" className="space-y-6">
@@ -305,23 +305,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="h-5 w-5" />
-                Enhanced Wallet Management
+                Wallet Management
               </CardTitle>
-              <CardDescription>
-                Monitor user wallets with real-time balances and instant settlement tracking
-              </CardDescription>
+              <CardDescription>Monitor platform wallet balances and transactions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <img 
-                  src="/assets/generated/wallet-interface.dim_400x300.png" 
-                  alt="Wallet Management" 
-                  className="w-full max-w-md mx-auto mb-4 rounded-lg opacity-50"
-                />
-                <p className="text-muted-foreground mb-2">Advanced wallet management dashboard</p>
-                <p className="text-sm text-muted-foreground">
-                  View user wallet balances in ICP and fiat, transaction history, instant settlement status, and manage platform-wide wallet settings.
-                </p>
+              <div className="text-center py-12 text-muted-foreground">
+                Wallet management features coming soon
               </div>
             </CardContent>
           </Card>
@@ -332,25 +322,18 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Gift className="h-5 w-5" />
-                Enhanced Rewards Engine Configuration
+                Rewards Engine
               </CardTitle>
-              <CardDescription>
-                Create and manage AI-personalized reward campaigns with all 11 campaign types
-              </CardDescription>
+              <CardDescription>Create and manage reward campaigns</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Button onClick={() => setRewardCampaignModalOpen(true)} className="w-full">
-                Create New Reward Campaign
-              </Button>
-              <div className="text-center py-8">
-                <img 
-                  src="/assets/generated/rewards-engine-dashboard.dim_600x400.png" 
-                  alt="Rewards Engine" 
-                  className="w-full max-w-2xl mx-auto mb-4 rounded-lg opacity-50"
-                />
-                <p className="text-muted-foreground">
-                  Configure airdrops, bonuses, commissions, contests, earnings, education, referrals, rewards, specials, volunteer, and workshop campaigns with AI-powered personalization.
-                </p>
+            <CardContent>
+              <div className="mb-6">
+                <Button onClick={() => setRewardCampaignModalOpen(true)}>
+                  Create Reward Campaign
+                </Button>
+              </div>
+              <div className="text-center py-12 text-muted-foreground">
+                View existing campaigns in the Rewards page
               </div>
             </CardContent>
           </Card>
@@ -361,23 +344,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Megaphone className="h-5 w-5" />
-                Intelligent Advertising Platform
+                Advertising Platform
               </CardTitle>
-              <CardDescription>
-                Configure ad campaigns, revenue distribution, and flexible pricing models
-              </CardDescription>
+              <CardDescription>Manage advertising campaigns and placements</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <img 
-                  src="/assets/generated/ad-revenue-sharing.dim_400x300.png" 
-                  alt="Ad Revenue Sharing" 
-                  className="w-full max-w-md mx-auto mb-4 rounded-lg opacity-50"
-                />
-                <p className="text-muted-foreground mb-2">Advertising system with automated revenue sharing</p>
-                <p className="text-sm text-muted-foreground">
-                  Set up ad campaigns with flexible reward-based pricing, configure revenue splits across multiple entities, track advertising performance with real-time analytics, and manage ad approvals with instant settlement options.
-                </p>
+              <div className="text-center py-12 text-muted-foreground">
+                Advertising platform features coming soon
               </div>
             </CardContent>
           </Card>
@@ -388,73 +361,43 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5" />
-                System Health & Economic Transparency
+                System Health
               </CardTitle>
-              <CardDescription>Monitor platform operations, performance, and financial tracking</CardDescription>
+              <CardDescription>Monitor platform performance and health metrics</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Backend Canister</p>
-                    <p className="text-sm text-muted-foreground">Main application logic</p>
-                  </div>
-                  <Badge variant="default" className="bg-green-500">Healthy</Badge>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Stripe Integration</p>
-                    <p className="text-sm text-muted-foreground">Payment processing with instant settlement</p>
-                  </div>
-                  <Badge variant="default" className="bg-green-500">Active</Badge>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Enhanced Wallet System</p>
-                    <p className="text-sm text-muted-foreground">Multi-currency ICP and fiat balances</p>
-                  </div>
-                  <Badge variant="default" className="bg-green-500">Operational</Badge>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">AI Rewards Engine</p>
-                    <p className="text-sm text-muted-foreground">Personalized campaign management</p>
-                  </div>
-                  <Badge variant="default" className="bg-green-500">Running</Badge>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Revenue Automation</p>
-                    <p className="text-sm text-muted-foreground">Multi-entity splits with instant settlement</p>
-                  </div>
-                  <Badge variant="default" className="bg-green-500">Active</Badge>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">AI Discovery Engine</p>
-                    <p className="text-sm text-muted-foreground">Contextual recommendations and trending analysis</p>
-                  </div>
-                  <Badge variant="default" className="bg-green-500">Optimized</Badge>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">System Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge variant="default" className="bg-green-600">Operational</Badge>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">-</div>
+                  </CardContent>
+                </Card>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {revenueConfigModalOpen && (
-        <RevenueShareConfigModal 
-          open={revenueConfigModalOpen}
-          onClose={() => setRevenueConfigModalOpen(false)}
-        />
-      )}
+      <RevenueShareConfigModal
+        open={revenueConfigModalOpen}
+        onClose={() => setRevenueConfigModalOpen(false)}
+      />
 
-      {rewardCampaignModalOpen && (
-        <CreateRewardCampaignModal 
-          open={rewardCampaignModalOpen}
-          onClose={() => setRewardCampaignModalOpen(false)}
-        />
-      )}
+      <CreateRewardCampaignModal
+        open={rewardCampaignModalOpen}
+        onClose={() => setRewardCampaignModalOpen(false)}
+      />
     </div>
   );
 }

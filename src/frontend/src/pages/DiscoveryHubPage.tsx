@@ -10,19 +10,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 export default function DiscoveryHubPage() {
   const { identity } = useInternetIdentity();
   const { data: projectEntries = [], isLoading } = useGetProjectEntries();
-  const { data: isAdmin } = useIsCallerAdmin();
-  const { data: analytics = [] } = useGetAllAnalytics(!!isAdmin);
+  const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
+  const { data: analytics = [] } = useGetAllAnalytics();
   const { data: userProfile } = useGetCallerUserProfile();
 
   const isAuthenticated = !!identity;
 
   // AI-powered trending analysis with contextual scoring
   const trendingDApps = useMemo(() => {
+    if (projectEntries.length === 0) return [];
+    
     return projectEntries
       .map(entry => {
         const analytic = analytics.find(a => a.projectId === entry.id);
-        const views = analytic ? Number(analytic.views) : 0;
-        const clicks = analytic ? Number(analytic.clicks) : 0;
+        const views = analytic ? Number(analytic.views) : Number(entry.views);
+        const clicks = analytic ? Number(analytic.clicks) : Number(entry.clicks);
         
         // AI-driven engagement score with multiple factors
         let engagementScore = 0;
@@ -39,6 +41,8 @@ export default function DiscoveryHubPage() {
 
   // Enhanced emerging DApps with AI-powered growth potential detection
   const emergingDApps = useMemo(() => {
+    if (projectEntries.length === 0) return [];
+    
     const avgViews = analytics.length > 0 
       ? analytics.reduce((sum, a) => sum + Number(a.views), 0) / analytics.length 
       : 0;
@@ -46,8 +50,8 @@ export default function DiscoveryHubPage() {
     return projectEntries
       .map(entry => {
         const analytic = analytics.find(a => a.projectId === entry.id);
-        const views = analytic ? Number(analytic.views) : 0;
-        const clicks = analytic ? Number(analytic.clicks) : 0;
+        const views = analytic ? Number(analytic.views) : Number(entry.views);
+        const clicks = analytic ? Number(analytic.clicks) : Number(entry.clicks);
         
         // AI growth potential score
         let growthPotential = 0;
@@ -62,28 +66,22 @@ export default function DiscoveryHubPage() {
           growthPotential += 40; // New DApps
         }
         
-        // Contextual relevance to user preferences
-        if (userProfile && userProfile.preferences.length > 0) {
-          const isRelevant = userProfile.preferences.some(pref => 
-            entry.category.toLowerCase().includes(pref.toLowerCase())
-          );
-          if (isRelevant) growthPotential += 20;
-        }
-        
         return { entry, views, clicks, growthPotential };
       })
       .filter(item => item.growthPotential > 40)
       .sort((a, b) => b.growthPotential - a.growthPotential)
       .slice(0, 3);
-  }, [projectEntries, analytics, userProfile]);
+  }, [projectEntries, analytics]);
 
   // Leaderboard with comprehensive engagement metrics
   const leaderboard = useMemo(() => {
+    if (projectEntries.length === 0) return [];
+    
     return projectEntries
       .map(entry => {
         const analytic = analytics.find(a => a.projectId === entry.id);
-        const views = analytic ? Number(analytic.views) : 0;
-        const clicks = analytic ? Number(analytic.clicks) : 0;
+        const views = analytic ? Number(analytic.views) : Number(entry.views);
+        const clicks = analytic ? Number(analytic.clicks) : Number(entry.clicks);
         const totalEngagement = views + clicks * 2; // Weight clicks higher
         return { entry, views, clicks, totalEngagement };
       })
@@ -114,211 +112,176 @@ export default function DiscoveryHubPage() {
     <div className="container py-12">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-          <Brain className="h-10 w-10 text-primary" />
-          AI-Powered Discovery Hub
+          <Compass className="h-10 w-10 text-primary" />
+          Discovery Hub
         </h1>
-        <p className="text-muted-foreground">
-          Explore trending DApps with contextual AI analysis and discover hidden gems with growth potential
-        </p>
+        <p className="text-muted-foreground">AI-powered insights into trending and emerging DApps</p>
       </div>
 
-      {/* Discovery Hub Image */}
-      <div className="mb-8">
-        <img 
-          src="/assets/generated/discovery-hub.dim_600x400.png" 
-          alt="Discovery Hub" 
-          className="w-full max-w-2xl mx-auto rounded-lg shadow-lg"
-        />
-      </div>
-
-      {/* AI Insights Banner */}
-      <Card className="mb-8 bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            AI-Powered Trending Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Our AI analyzes engagement patterns, user behavior, and contextual relevance to surface the most promising DApps. 
-            Recommendations are personalized based on your activity history and preferences.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Trending DApps */}
-      <div className="mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Flame className="h-5 w-5 text-orange-500" />
-              Trending DApps
-            </CardTitle>
-            <CardDescription>Most engaging DApps with AI-driven contextual scoring</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading trending DApps...</div>
-            ) : trendingDApps.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No trending data available yet</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {trendingDApps.map(({ entry, views, clicks, engagementScore }, index) => (
-                  <Card key={entry.id} className="hover:shadow-lg transition-shadow border-primary/10">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={entry.logo.getDirectURL()}
-                          alt={entry.name}
-                          className="h-12 w-12 rounded-lg object-cover"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-xs">#{index + 1}</Badge>
-                            <TrendingUp className="h-4 w-4 text-chart-1" />
+      {isLoading || adminLoading ? (
+        <div className="text-center py-12">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading discovery insights...</p>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {/* Trending DApps */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <CardTitle>Trending DApps</CardTitle>
+              </div>
+              <CardDescription>Most engaging DApps based on AI-powered contextual analysis</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {trendingDApps.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No trending data available yet</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {trendingDApps.map(({ entry, views, clicks, engagementScore }) => (
+                    <Card key={entry.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start gap-3">
+                          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Star className="h-6 w-6 text-primary" />
                           </div>
-                          <CardTitle className="text-base mt-1">{entry.name}</CardTitle>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base truncate">{entry.name}</CardTitle>
+                            <Badge variant="outline" className="capitalize text-xs mt-1">
+                              DApp
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">AI Score:</span>
-                        <span className="font-bold text-primary">{engagementScore.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Views:</span>
-                        <span>{views}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Clicks:</span>
-                        <span>{clicks}</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="w-full gap-2 mt-2"
-                        onClick={() => window.open(entry.url, '_blank')}
-                      >
-                        Launch
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm text-muted-foreground line-clamp-2">{entry.description}</p>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Views</span>
+                          <span className="font-medium">{views}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Clicks</span>
+                          <span className="font-medium">{clicks}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Score</span>
+                          <span className="font-bold text-primary">{engagementScore.toFixed(1)}</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full gap-2"
+                          onClick={() => console.log('Explore DApp:', entry.name)}
+                        >
+                          Explore
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Emerging DApps Spotlight with AI Growth Potential */}
-      <div className="mb-8">
-        <Card className="bg-gradient-to-br from-accent/10 to-chart-2/10 border-accent/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-500" />
-              Emerging DApps with Growth Potential
-            </CardTitle>
-            <CardDescription>AI-detected projects with high growth potential and contextual relevance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {emergingDApps.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No emerging DApps detected yet</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {emergingDApps.map(({ entry, views, clicks, growthPotential }) => (
-                  <Card key={entry.id} className="hover:shadow-lg transition-shadow border-accent/20">
-                    <CardHeader>
-                      <img
-                        src={entry.logo.getDirectURL()}
-                        alt={entry.name}
-                        className="h-16 w-16 rounded-lg object-cover mx-auto mb-2"
-                      />
-                      <CardTitle className="text-center text-base">{entry.name}</CardTitle>
-                      <Badge variant="outline" className="capitalize mx-auto">
-                        {entry.category}
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Growth Score:</span>
-                        <span className="font-bold text-accent">{growthPotential}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Views:</span>
-                        <span>{views}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Clicks:</span>
-                        <span>{clicks}</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="w-full gap-2 mt-2"
-                        onClick={() => window.open(entry.url, '_blank')}
-                      >
-                        Discover
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+          {/* Emerging DApps */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Flame className="h-5 w-5 text-orange-500" />
+                <CardTitle>Emerging DApps</CardTitle>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <CardDescription>Hidden gems with high growth potential detected by AI</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {emergingDApps.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No emerging DApps detected yet</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {emergingDApps.map(({ entry, growthPotential }) => (
+                    <Card key={entry.id} className="hover:shadow-lg transition-shadow border-orange-500/20">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start gap-3">
+                          <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                            <Flame className="h-6 w-6 text-orange-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base truncate">{entry.name}</CardTitle>
+                            <Badge variant="outline" className="capitalize text-xs mt-1">
+                              DApp
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm text-muted-foreground line-clamp-2">{entry.description}</p>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Sparkles className="h-4 w-4 text-orange-500" />
+                          <span className="text-muted-foreground">Growth Potential:</span>
+                          <span className="font-bold text-orange-500">{growthPotential}</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={() => console.log('Discover DApp:', entry.name)}
+                        >
+                          Discover
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Leaderboard */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-chart-3" />
-            Engagement Leaderboard
-          </CardTitle>
-          <CardDescription>Top DApps ranked by comprehensive engagement metrics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {leaderboard.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No leaderboard data available yet</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-16">Rank</TableHead>
-                  <TableHead>DApp</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Views</TableHead>
-                  <TableHead className="text-right">Clicks</TableHead>
-                  <TableHead className="text-right">Engagement Score</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leaderboard.map(({ entry, views, clicks, totalEngagement }, index) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-bold">
-                      {index === 0 && '🥇'}
-                      {index === 1 && '🥈'}
-                      {index === 2 && '🥉'}
-                      {index > 2 && `#${index + 1}`}
-                    </TableCell>
-                    <TableCell className="font-medium">{entry.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {entry.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{views}</TableCell>
-                    <TableCell className="text-right">{clicks}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">{totalEngagement}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          {/* Engagement Leaderboard */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-yellow-500" />
+                <CardTitle>Engagement Leaderboard</CardTitle>
+              </div>
+              <CardDescription>Top DApps ranked by total engagement metrics</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {leaderboard.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No engagement data available yet</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Rank</TableHead>
+                      <TableHead>DApp</TableHead>
+                      <TableHead className="text-right">Views</TableHead>
+                      <TableHead className="text-right">Clicks</TableHead>
+                      <TableHead className="text-right">Score</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaderboard.map(({ entry, views, clicks, totalEngagement }, index) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-bold">
+                          {index === 0 && <span className="text-yellow-500">🥇</span>}
+                          {index === 1 && <span className="text-gray-400">🥈</span>}
+                          {index === 2 && <span className="text-orange-600">🥉</span>}
+                          {index > 2 && <span className="text-muted-foreground">{index + 1}</span>}
+                        </TableCell>
+                        <TableCell className="font-medium">{entry.name}</TableCell>
+                        <TableCell className="text-right">{views}</TableCell>
+                        <TableCell className="text-right">{clicks}</TableCell>
+                        <TableCell className="text-right font-bold text-primary">{totalEngagement}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

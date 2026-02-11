@@ -1,39 +1,35 @@
 import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useParams, useNavigate } from '@tanstack/react-router';
+import { useGetPublicVendor, useListProducts, useCreateOrder } from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useListProducts, useCreateOrder, useListPublicVendors } from '../hooks/useQueries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Search, Loader2, Store, ExternalLink } from 'lucide-react';
+import { Store, Loader2, ShoppingCart, Search, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Product } from '../types';
 
-export default function ShopPage() {
+export default function VendorStorePage() {
+  const { vendorId } = useParams({ strict: false }) as { vendorId: string };
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
-  const { data: products = [], isLoading: productsLoading } = useListProducts();
-  const { data: vendors = [], isLoading: vendorsLoading } = useListPublicVendors();
+  const { data: vendor, isLoading: vendorLoading, error: vendorError } = useGetPublicVendor(vendorId);
+  const { data: allProducts = [], isLoading: productsLoading } = useListProducts();
   const createOrder = useCreateOrder();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const isAuthenticated = !!identity;
-  const isLoading = productsLoading || vendorsLoading;
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesVendor = !selectedVendor || product.vendorId === selectedVendor;
-    return matchesSearch && matchesVendor;
-  });
+  // Filter products by vendor
+  const vendorProducts = allProducts.filter((product) => product.vendorId === vendorId);
 
-  const getVendorName = (vendorId: string) => {
-    const vendor = vendors.find((v) => v.principalId === vendorId);
-    return vendor?.displayName || `${vendorId.slice(0, 8)}...`;
-  };
+  // Apply search filter
+  const filteredProducts = vendorProducts.filter((product) =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleQuantityChange = (productId: string, value: string) => {
     const qty = parseInt(value) || 0;
@@ -71,72 +67,88 @@ export default function ShopPage() {
     }
   };
 
-  if (isLoading) {
+  if (vendorLoading || productsLoading) {
     return (
       <div className="container py-16 text-center">
         <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-        <p className="text-muted-foreground">Loading products...</p>
+        <p className="text-muted-foreground">Loading vendor store...</p>
+      </div>
+    );
+  }
+
+  if (vendorError || !vendor) {
+    return (
+      <div className="container py-16 text-center">
+        <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+        <h2 className="text-2xl font-bold mb-2">Vendor Not Found</h2>
+        <p className="text-muted-foreground mb-4">This vendor store is not available</p>
+        <Button onClick={() => navigate({ to: '/vendors' })}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Directory
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="container py-12">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-          <ShoppingCart className="h-10 w-10 text-primary" />
-          Shop
-        </h1>
-        <p className="text-muted-foreground">Browse and purchase products from our vendors</p>
-      </div>
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        onClick={() => navigate({ to: '/vendors' })}
+        className="mb-6"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Directory
+      </Button>
 
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      {/* Vendor Profile Header */}
+      <Card className="mb-8">
+        <CardHeader>
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Store className="h-8 w-8 text-primary" />
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-3xl mb-2">{vendor.displayName}</CardTitle>
+              <CardDescription className="text-base">{vendor.bio || 'No description available'}</CardDescription>
+              {vendor.categories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {vendor.categories.map((category, idx) => (
+                    <Badge key={idx} variant="secondary">
+                      {category}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search products..."
+            placeholder="Search products in this store..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
-        {vendors.length > 0 && (
-          <div className="flex gap-2">
-            <select
-              value={selectedVendor}
-              onChange={(e) => setSelectedVendor(e.target.value)}
-              className="px-4 py-2 border rounded-md bg-background flex-1 sm:flex-initial"
-            >
-              <option value="">All Vendors</option>
-              {vendors.map((vendor) => (
-                <option key={vendor.id} value={vendor.principalId}>
-                  {vendor.displayName}
-                </option>
-              ))}
-            </select>
-            {selectedVendor && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => navigate({ to: `/vendors/${selectedVendor}` })}
-                title="Visit vendor store"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        )}
       </div>
 
+      {/* Products Grid */}
       {filteredProducts.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
             <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <CardTitle className="mb-2">No Products Found</CardTitle>
             <p className="text-muted-foreground">
-              {searchTerm || selectedVendor
-                ? 'Try adjusting your filters'
-                : 'No products available at the moment'}
+              {searchTerm
+                ? 'Try adjusting your search'
+                : 'This vendor has no products available at the moment'}
             </p>
           </CardContent>
         </Card>
@@ -152,15 +164,6 @@ export default function ShopPage() {
                   </Badge>
                 </div>
                 <CardDescription className="line-clamp-2">{product.description}</CardDescription>
-                <div className="flex items-center gap-2 mt-2">
-                  <Store className="h-3 w-3 text-muted-foreground" />
-                  <button
-                    onClick={() => navigate({ to: `/vendors/${product.vendorId}` })}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors underline"
-                  >
-                    {getVendorName(product.vendorId)}
-                  </button>
-                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
