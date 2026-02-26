@@ -1,0 +1,77 @@
+{
+  "kind": "build_request",
+  "title": "Stage 7 — Analytics Wiring, Remaining Integration & UI Polish",
+  "projectName": "CitizensCo CAppStores",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Wire the GlobalDashboardPage analytics data to live backend calls: replace any remaining mock/static values for platform-wide views, clicks, active campaigns, reward pools, and ad revenue with real data fetched via React Query hooks against the backend actor.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "If next is Stage 7 please go ahead"
+        ]
+      },
+      "acceptanceCriteria": [
+        "GlobalDashboardPage displays live totals for views, clicks, active campaigns, reward pool balance, and ad revenue sourced from the backend.",
+        "No hardcoded or mock numeric values remain in GlobalDashboardPage for the above metrics.",
+        "Data refreshes correctly when the underlying backend state changes."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Complete remaining frontend-backend integration tasks identified in the pending action requests (AR-2, AR-3, AR-5 in project_state.json): audit all pages and components still using mock or local data and replace them with live React Query hooks that call the backend actor.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "If next is Stage 7 please go ahead"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All pages listed in frontend/EXECUTION_PLAN.md that were flagged as pending or in-progress are now sourcing data from the live backend.",
+        "No frontend component renders static/mock data for fields that have a corresponding backend endpoint.",
+        "React Query hooks in useQueries.ts cover all required backend calls without duplication."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Apply UI polish across all pages: ensure consistent use of the OKLCH design tokens defined in index.css and tailwind.config.js, fix any visual inconsistencies in spacing, typography, badge styles, and card layouts across MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, and the AdminPanel.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "If next is Stage 7 please go ahead"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All pages use the OKLCH color tokens from the design system for backgrounds, text, borders, and interactive elements.",
+        "Card, badge, and table styles are visually consistent across all listed pages.",
+        "Light and dark theme variants render correctly on all polished pages.",
+        "No inline style overrides that conflict with the Tailwind token system remain."
+      ]
+    }
+  ],
+  "constraints": [
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
+    "All Motoko logic must remain in the single backend/main.mo actor.",
+    "Only generate migration.mo if backend state shape changes are required."
+  ],
+  "nonGoals": [
+    "Adding new backend endpoints not already planned in the execution plan.",
+    "Redesigning the overall visual theme or brand identity.",
+    "Implementing features outside the scope of AR-2, AR-3, and AR-5."
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

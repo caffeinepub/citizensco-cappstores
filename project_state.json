@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 3,
+  "summary": "New project",
+  "architectural_notes": [],
+  "known_issues": [],
+  "isFixRequest": false,
+  "existing_features": [],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Wire the GlobalDashboardPage analytics data to live backend calls: replace any remaining mock/static values for platform-wide views, clicks, active campaigns, reward pools, and ad revenue with real data fetched via React Query hooks against the backend actor.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Complete remaining frontend-backend integration tasks identified in the pending action requests (AR-2, AR-3, AR-5 in project_state.json): audit all pages and components still using mock or local data and replace them with live React Query hooks that call the backend actor.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Apply UI polish across all pages: ensure consistent use of the OKLCH design tokens defined in index.css and tailwind.config.js, fix any visual inconsistencies in spacing, typography, badge styles, and card layouts across MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, and the AdminPanel.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "status": "pending"
+    }
+  ],
+  "projectName": "CitizensCo CAppStores",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

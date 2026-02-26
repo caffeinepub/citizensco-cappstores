@@ -1,0 +1,196 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Stage 7 — Analytics Wiring, Remaining Integration & UI Polish",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "summary": "Wire GlobalDashboardPage analytics data to live backend calls, replacing all mock/static values with real data fetched via React Query hooks",
+      "acceptanceCriteria": [
+        "GlobalDashboardPage displays live totals for views, clicks, active campaigns, reward pool balance, and ad revenue sourced from the backend.",
+        "No hardcoded or mock numeric values remain in GlobalDashboardPage for the above metrics.",
+        "Data refreshes correctly when the underlying backend state changes."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/GlobalDashboardPage.tsx",
+          "operation": "modify",
+          "description": "Replace all mock/static analytics values with live backend data. Use useListProjectEntries and useGetProjectAnalytics hooks to aggregate total views and clicks across all projects. Use useListRewardCampaigns to count active campaigns and calculate total reward pool from campaign rewardAmounts. Remove hardcoded numeric constants for platformStats. Ensure the page displays loading states while data is being fetched and refreshes automatically when backend state changes via React Query cache invalidation."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Audit existing React Query hooks (useListProjectEntries, useGetProjectAnalytics, useListRewardCampaigns) to ensure they are properly exporting and caching data needed by GlobalDashboardPage. If any hooks are missing or incomplete for fetching platform-wide analytics, add or fix them. Ensure hooks handle errors gracefully and provide loading states. Verify that useGetProjectAnalytics accepts a projectId parameter and is callable multiple times for aggregating data across projects."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Complete remaining frontend-backend integration tasks by replacing all mock or local data with live React Query hooks across all pages and components",
+      "acceptanceCriteria": [
+        "All pages listed in frontend/EXECUTION_PLAN.md that were flagged as pending or in-progress are now sourcing data from the live backend.",
+        "No frontend component renders static/mock data for fields that have a corresponding backend endpoint.",
+        "React Query hooks in useQueries.ts cover all required backend calls without duplication."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/RewardsPage.tsx",
+          "operation": "modify",
+          "description": "Audit RewardsPage to ensure all reward campaign data is fetched via useListRewardCampaigns hook. Replace any remaining mock or hardcoded campaign data with live backend calls. Ensure join/complete actions use the appropriate mutation hooks (useJoinRewardCampaign, useCompleteRewardCampaign) and refresh campaign data after successful mutations. Verify that campaign cards display real rewardAmount, participants count, and type-specific styling based on live data."
+        },
+        {
+          "path": "frontend/src/pages/ShopPage.tsx",
+          "operation": "modify",
+          "description": "Verify that ShopPage fetches all products via useListProducts hook and vendor data via useListPublicVendors hook. Ensure product filtering by search term and vendor selection operates on live backend data. Confirm that the order placement flow uses the useCreateCheckoutSession mutation for authenticated users and displays proper error messages if the session URL is missing. Remove any static product arrays or mock vendor data."
+        },
+        {
+          "path": "frontend/src/pages/VendorPage.tsx",
+          "operation": "modify",
+          "description": "Audit VendorPage to ensure vendor profile, balance, and order data are sourced from useGetMyVendor, useGetVendorBalance, and useGetVendorOrders hooks. Verify that profile updates use useUpdateVendorProfile mutation, balance withdrawals use useWithdrawVendorBalance mutation, and product management uses useCreateProduct and useMyVendorProducts hooks. Replace any mock balance or order data with live backend calls."
+        },
+        {
+          "path": "frontend/src/pages/VendorDirectoryPage.tsx",
+          "operation": "modify",
+          "description": "Confirm that VendorDirectoryPage fetches vendors via useListPublicVendors or useListPublicVendorsByCategory hooks based on active category filter. Ensure search, sort, and category filtering operate on live backend data. Verify that URL params sync correctly with filter state and that debounced search updates trigger new backend queries. Remove any static vendor arrays or mock directory data."
+        },
+        {
+          "path": "frontend/src/pages/OrdersPage.tsx",
+          "operation": "modify",
+          "description": "Verify that OrdersPage fetches order history via useListOrders hook for the authenticated user. Ensure the order table displays live status, product IDs, quantities, and amounts from backend data. Confirm that clicking a row opens the OrderDetailDialog with the correct order details. Replace any mock order arrays with live backend calls."
+        },
+        {
+          "path": "frontend/src/pages/WalletPage.tsx",
+          "operation": "modify",
+          "description": "Audit WalletPage to ensure ICP balance is sourced from a backend capability if available, or clearly document that it is frontend-only. Verify that deposit/withdraw forms use appropriate mutation hooks if backend support exists. If wallet transactions are stored in the backend, fetch them via a React Query hook and display in the transaction history table. Remove any hardcoded balance or transaction data that should come from the backend."
+        },
+        {
+          "path": "frontend/src/pages/DiscoveryHubPage.tsx",
+          "operation": "modify",
+          "description": "Verify that DiscoveryHubPage calculates trending, emerging, and leaderboard DApps using live analytics data fetched via useListProjectEntries and useGetProjectAnalytics hooks. Ensure engagement scoring logic operates on real views, clicks, and timestamps from the backend. Remove any mock or static project data used for trending/emerging calculations."
+        },
+        {
+          "path": "frontend/src/pages/MarketplacePage.tsx",
+          "operation": "modify",
+          "description": "Confirm that MarketplacePage fetches all DApps via useListProjectEntries hook and displays them with live views/clicks data. Ensure search, sort, and category filtering operate on backend data. Verify that the AddDAppModal uses useAddProjectEntry mutation and refreshes the marketplace list on success. Ensure view tracking increments backend views via useTrackProjectView mutation and is session-gated to avoid duplicate counts. Remove any static or mock project arrays."
+        },
+        {
+          "path": "frontend/src/components/AdminPanel.tsx",
+          "operation": "modify",
+          "description": "Audit AdminPanel to ensure all analytics, revenue, wallet, and reward metrics are sourced from live backend data via React Query hooks (useListProjectEntries, useGetProjectAnalytics, useListRewardCampaigns, useListProducts, useListOrders). Replace any mock or hardcoded stats with aggregated backend data. Verify that admin-only actions (creating campaigns, configuring Stripe, managing users) use mutation hooks and refresh relevant data on success."
+        },
+        {
+          "path": "frontend/src/components/RevenueDashboard.tsx",
+          "operation": "modify",
+          "description": "Replace all mock revenue metrics with live backend data if available. If revenue tracking is not yet implemented in the backend, clearly document this as frontend-only and use placeholder text or disable the dashboard. Verify that per-DApp revenue breakdown aggregates real analytics data (views, clicks) and uses project entries fetched via useListProjectEntries hook. Remove hardcoded revenue totals or payout amounts that should come from the backend."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Perform a comprehensive audit of all React Query hooks to ensure complete backend coverage. Add any missing hooks for backend endpoints listed in backend.d.ts (e.g., getOrder, getVendorBalance, getProjectsByOwner). Ensure all mutation hooks (create, update, delete operations) invalidate relevant query keys on success to trigger automatic data refresh. Remove any duplicate or unused hooks. Verify that error handling is consistent across all hooks and that loading states are properly exposed."
+        },
+        {
+          "path": "frontend/EXECUTION_PLAN.md",
+          "operation": "modify",
+          "description": "Update the execution plan to mark all pending or in-progress integration tasks as complete. Document that all pages now source data from the live backend via React Query hooks. Update the Rewards Engine phase status from 'in-progress' to 'complete' if all reward campaign data is now live. Add a final note confirming that frontend-backend integration is fully wired and no mock data remains in production code paths."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Apply UI polish across all pages to ensure consistent use of OKLCH design tokens and fix visual inconsistencies in spacing, typography, badge styles, and card layouts",
+      "acceptanceCriteria": [
+        "All pages use the OKLCH color tokens from the design system for backgrounds, text, borders, and interactive elements.",
+        "Card, badge, and table styles are visually consistent across all listed pages.",
+        "Light and dark theme variants render correctly on all polished pages.",
+        "No inline style overrides that conflict with the Tailwind token system remain."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/MarketplacePage.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH design tokens for card backgrounds (bg-card), borders (border-border), text (text-foreground, text-muted-foreground), and interactive elements (bg-primary, text-primary-foreground). Ensure DAppCard components use standard spacing classes (p-4, gap-4) and border radii from the design system. Verify that search input and filter controls use consistent styling. Remove any inline style overrides or hardcoded color values that conflict with the design tokens."
+        },
+        {
+          "path": "frontend/src/pages/RewardsPage.tsx",
+          "operation": "modify",
+          "description": "Ensure campaign cards use OKLCH tokens for type-specific colors (reward, contest, education, etc.) with proper contrast ratios for light and dark themes. Apply consistent spacing (p-6, gap-4) and typography (text-base, font-medium, text-sm) across all campaign card sections. Verify that badge styles (active, pending, completed) use design system tokens for background and text colors. Remove any hardcoded color values or inline styles."
+        },
+        {
+          "path": "frontend/src/pages/ShopPage.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to product cards (bg-card, border-border), price displays (text-primary), and stock badges (bg-secondary, text-secondary-foreground). Ensure grid layouts use standard gap spacing (gap-6) and card padding (p-4). Verify that the Stripe checkout button uses primary button styling (bg-primary, hover:bg-primary/90). Test light and dark theme rendering for product images and ensure proper contrast. Remove any inline color or spacing overrides."
+        },
+        {
+          "path": "frontend/src/pages/VendorPage.tsx",
+          "operation": "modify",
+          "description": "Ensure vendor profile sections, balance display, and order tables use consistent OKLCH design tokens. Apply standard card styling (bg-card, border-border, rounded-lg) to profile edit forms and balance widgets. Verify that action buttons (publish, withdraw, update profile) use primary or secondary button tokens consistently. Ensure table headers and rows use muted backgrounds and proper border colors from the design system. Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/src/pages/VendorDirectoryPage.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to vendor cards (bg-card, border-border), category badges (bg-secondary), and filter controls. Ensure grid layouts use standard spacing (gap-6) and vendor cards have uniform padding (p-6). Verify that search input and category select dropdowns use design system form control styling. Test light and dark theme variants for vendor bio text and category tags. Remove any inline color overrides."
+        },
+        {
+          "path": "frontend/src/pages/DiscoveryHubPage.tsx",
+          "operation": "modify",
+          "description": "Ensure trending, emerging, and leaderboard DApp cards use consistent OKLCH tokens for backgrounds, borders, and text. Apply standard badge styling (bg-primary, bg-secondary) for rank indicators and engagement metrics. Verify that tab navigation uses design system tokens for active/inactive states. Ensure card layouts have uniform spacing (p-4, gap-4) and typography (text-base, text-sm). Remove any hardcoded colors or inline styles."
+        },
+        {
+          "path": "frontend/src/pages/OrdersPage.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to the order table (bg-card, border-border) and status badges (pending, paid, shipped, delivered, cancelled). Ensure table headers use muted backgrounds (bg-muted) and proper text contrast. Verify that row hover states use design system hover tokens. Ensure the OrderDetailDialog uses standard dialog styling with proper card backgrounds and text colors. Remove any inline table styling or hardcoded badge colors."
+        },
+        {
+          "path": "frontend/src/pages/WalletPage.tsx",
+          "operation": "modify",
+          "description": "Ensure wallet balance cards use consistent OKLCH tokens for backgrounds (bg-card), borders (border-border), and currency labels (text-primary). Apply standard form styling (bg-input, border-input) to deposit/withdraw input fields. Verify that transaction history table uses design system tokens for headers, rows, and status indicators. Test light and dark theme rendering for balance displays and transaction amounts. Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/src/pages/GlobalDashboardPage.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to all metric cards (bg-card, border-border), chart containers, and stat displays. Ensure typography is uniform (text-2xl for metrics, text-sm for labels) and uses design system font weights. Verify that chart colors use the oklch chart color tokens defined in index.css (--chart-1 through --chart-5). Remove any hardcoded color values or inline styles that conflict with the design system."
+        },
+        {
+          "path": "frontend/src/components/AdminPanel.tsx",
+          "operation": "modify",
+          "description": "Ensure all admin panel tabs and sections use consistent OKLCH design tokens. Apply standard card styling to overview, analytics, revenue, and system health sections. Verify that action buttons (create campaign, configure Stripe, manage users) use primary button tokens. Ensure table and list views use design system tokens for backgrounds, borders, and text. Test light and dark theme variants for all admin sections. Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/src/components/DAppCard.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens for card backgrounds (bg-card), borders (border-border), and hover states (hover:bg-accent). Ensure typography is uniform (text-base for name, text-sm for description) and uses proper text color tokens (text-foreground, text-muted-foreground). Verify that view/click metrics use design system muted text colors. Ensure the launch button uses primary button styling. Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/src/components/RecommendationsPanel.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to recommendation cards (bg-card, border-border) and engagement score badges (bg-primary, text-primary-foreground). Ensure card spacing (p-4, gap-2) and typography (text-base, text-sm) are uniform across all recommendations. Verify that light and dark theme variants render correctly for AI score displays. Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/src/components/RevenueDashboard.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to revenue metric cards (bg-card, border-border) and per-DApp revenue tables. Ensure typography is uniform (text-xl for totals, text-sm for labels) and uses design system font weights. Verify that chart or graph elements use oklch chart color tokens. Test light and dark theme rendering for revenue displays. Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/src/components/vendor/MyProductsSection.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to product cards (bg-card, border-border), price displays (text-primary), and stock badges (bg-secondary). Ensure grid layouts use standard gap spacing (gap-4) and card padding (p-4). Verify that the empty state prompt uses muted text colors (text-muted-foreground). Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/src/components/vendor/VendorOnboarding.tsx",
+          "operation": "modify",
+          "description": "Apply consistent OKLCH tokens to the onboarding checklist card (bg-card, border-border) and completion status indicators (text-primary, text-muted-foreground). Ensure typography and spacing are uniform (p-6, gap-4). Verify that checkboxes or status icons use design system accent colors. Remove any inline styles or hardcoded colors."
+        },
+        {
+          "path": "frontend/tailwind.config.js",
+          "operation": "modify",
+          "description": "Audit the Tailwind config to ensure all custom OKLCH color tokens are properly defined and accessible via Tailwind utility classes (bg-card, text-foreground, border-border, etc.). Verify that chart color tokens (--chart-1 through --chart-5) are correctly mapped. Ensure border radius tokens (rounded-lg, rounded-md) are consistent with the design system. Add any missing token mappings required by the polished pages. Document the complete color token system in comments for maintainability."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Audit the global stylesheet to ensure all OKLCH CSS custom properties are correctly defined for light and dark themes. Verify that background, foreground, muted, accent, primary, secondary, destructive, and chart color tokens are properly scoped under :root and .dark selectors. Ensure border and input color tokens are defined. Add any missing token definitions required by the polished components. Remove any unused or redundant color definitions."
+        }
+      ]
+    }
+  ]
+}

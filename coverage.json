@@ -1,0 +1,81 @@
+{
+  "kind": "coverage_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-26T03:41:03.677Z",
+  "sources": {
+    "buildRequest": true,
+    "implementationPlan": true
+  },
+  "requirements": {
+    "total": 3,
+    "implemented": 0,
+    "items": [
+      {
+        "id": "REQ-1",
+        "summary": "Wire the GlobalDashboardPage analytics data to live backend calls: replace any remaining mock/static values for platform-wide views, clicks, active campaigns, reward pools, and ad revenue with real data fetched via React Query hooks against the backend actor.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/GlobalDashboardPage.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Complete remaining frontend-backend integration tasks identified in the pending action requests (AR-2, AR-3, AR-5 in project_state.json): audit all pages and components still using mock or local data and replace them with live React Query hooks that call the backend actor.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/RewardsPage.tsx",
+          "frontend/src/pages/ShopPage.tsx",
+          "frontend/src/pages/VendorPage.tsx",
+          "frontend/src/pages/VendorDirectoryPage.tsx",
+          "frontend/src/pages/OrdersPage.tsx",
+          "frontend/src/pages/WalletPage.tsx",
+          "frontend/src/pages/DiscoveryHubPage.tsx",
+          "frontend/src/pages/MarketplacePage.tsx",
+          "frontend/src/components/AdminPanel.tsx",
+          "frontend/src/components/RevenueDashboard.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/EXECUTION_PLAN.md"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Apply UI polish across all pages: ensure consistent use of the OKLCH design tokens defined in index.css and tailwind.config.js, fix any visual inconsistencies in spacing, typography, badge styles, and card layouts across MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, and the AdminPanel.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/MarketplacePage.tsx",
+          "frontend/src/pages/RewardsPage.tsx",
+          "frontend/src/pages/ShopPage.tsx",
+          "frontend/src/pages/VendorPage.tsx",
+          "frontend/src/pages/VendorDirectoryPage.tsx",
+          "frontend/src/pages/DiscoveryHubPage.tsx",
+          "frontend/src/pages/OrdersPage.tsx",
+          "frontend/src/pages/WalletPage.tsx",
+          "frontend/src/pages/GlobalDashboardPage.tsx",
+          "frontend/src/components/AdminPanel.tsx",
+          "frontend/src/components/DAppCard.tsx",
+          "frontend/src/components/RecommendationsPanel.tsx",
+          "frontend/src/components/RevenueDashboard.tsx",
+          "frontend/src/components/vendor/MyProductsSection.tsx",
+          "frontend/src/components/vendor/VendorOnboarding.tsx",
+          "frontend/tailwind.config.js",
+          "frontend/src/index.css"
+        ],
+        "matchedFiles": []
+      }
+    ]
+  },
+  "changedFiles": [
+    "build-request.json",
+    "feature_evidence.json",
+    "frontend-file-summaries.txt",
+    "frontend-implementation-plan.json",
+    "frontend/src/utils/urlParams.ts",
+    "project_state.json",
+    "scratch/component-selection.json",
+    "spec.md",
+    "spec_vs_diff_report.json"
+  ]
+}
