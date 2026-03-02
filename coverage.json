@@ -1,78 +1,89 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T03:41:03.677Z",
+  "generatedAt": "2026-03-02T19:06:53.837Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 0,
+    "total": 5,
+    "implemented": 4,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Wire the GlobalDashboardPage analytics data to live backend calls: replace any remaining mock/static values for platform-wide views, clicks, active campaigns, reward pools, and ad revenue with real data fetched via React Query hooks against the backend actor.",
-        "status": "missing",
+        "summary": "Implement average rating display on the VendorCard/VendorDirectoryPage: compute and show a star rating badge (average of all reviews) for each vendor in the directory listing, using the existing review data from the backend.",
+        "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/GlobalDashboardPage.tsx",
-          "frontend/src/hooks/useQueries.ts"
+          "frontend/src/components/VendorCard.tsx",
+          "frontend/src/pages/VendorDirectoryPage.tsx"
         ],
-        "matchedFiles": []
+        "matchedFiles": [
+          "frontend/src/components/VendorCard.tsx",
+          "frontend/src/pages/VendorDirectoryPage.tsx"
+        ]
       },
       {
         "id": "REQ-2",
-        "summary": "Complete remaining frontend-backend integration tasks identified in the pending action requests (AR-2, AR-3, AR-5 in project_state.json): audit all pages and components still using mock or local data and replace them with live React Query hooks that call the backend actor.",
-        "status": "missing",
+        "summary": "Add average rating and review count display to the VendorStorePage public storefront header, pulling data from the existing reviews query so visitors can see the vendor's overall rating at a glance.",
+        "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/RewardsPage.tsx",
-          "frontend/src/pages/ShopPage.tsx",
-          "frontend/src/pages/VendorPage.tsx",
-          "frontend/src/pages/VendorDirectoryPage.tsx",
-          "frontend/src/pages/OrdersPage.tsx",
-          "frontend/src/pages/WalletPage.tsx",
-          "frontend/src/pages/DiscoveryHubPage.tsx",
-          "frontend/src/pages/MarketplacePage.tsx",
-          "frontend/src/components/AdminPanel.tsx",
-          "frontend/src/components/RevenueDashboard.tsx",
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/EXECUTION_PLAN.md"
+          "frontend/src/pages/VendorStorePage.tsx"
         ],
-        "matchedFiles": []
+        "matchedFiles": [
+          "frontend/src/pages/VendorStorePage.tsx"
+        ]
       },
       {
         "id": "REQ-3",
-        "summary": "Apply UI polish across all pages: ensure consistent use of the OKLCH design tokens defined in index.css and tailwind.config.js, fix any visual inconsistencies in spacing, typography, badge styles, and card layouts across MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, and the AdminPanel.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/pages/MarketplacePage.tsx",
-          "frontend/src/pages/RewardsPage.tsx",
-          "frontend/src/pages/ShopPage.tsx",
-          "frontend/src/pages/VendorPage.tsx",
-          "frontend/src/pages/VendorDirectoryPage.tsx",
-          "frontend/src/pages/DiscoveryHubPage.tsx",
-          "frontend/src/pages/OrdersPage.tsx",
-          "frontend/src/pages/WalletPage.tsx",
-          "frontend/src/pages/GlobalDashboardPage.tsx",
-          "frontend/src/components/AdminPanel.tsx",
-          "frontend/src/components/DAppCard.tsx",
-          "frontend/src/components/RecommendationsPanel.tsx",
-          "frontend/src/components/RevenueDashboard.tsx",
-          "frontend/src/components/vendor/MyProductsSection.tsx",
-          "frontend/src/components/vendor/VendorOnboarding.tsx",
-          "frontend/tailwind.config.js",
-          "frontend/src/index.css"
-        ],
+        "summary": "Add backend support for retrieving all reviews for a given vendor as an aggregate (average rating + count) via a dedicated query function, so the frontend can efficiently fetch summary stats without loading full review objects for listing pages.",
+        "status": "unknown",
+        "plannedFiles": [],
         "matchedFiles": []
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Expose the new getVendorRatingSummary backend query in useQueries.ts as a React Query hook (e.g., useVendorRatingSummary(vendorId)), and use it in VendorDirectoryPage and VendorStorePage for displaying aggregate rating stats.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-5",
+        "summary": "Add a sortable 'Rating' column/option to VendorDirectoryPage so users can sort vendors by their average rating (highest-rated first), leveraging the existing sort controls and vendorDiscovery utility helpers.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/utils/vendorDiscovery.ts",
+          "frontend/src/pages/VendorDirectoryPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/utils/vendorDiscovery.ts",
+          "frontend/src/pages/VendorDirectoryPage.tsx"
+        ]
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/VendorCard.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/VendorDirectoryPage.tsx",
+    "frontend/src/pages/VendorStorePage.tsx",
     "frontend/src/utils/urlParams.ts",
+    "frontend/src/utils/vendorDiscovery.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

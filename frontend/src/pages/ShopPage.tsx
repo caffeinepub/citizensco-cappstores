@@ -1,207 +1,193 @@
-import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import React, { useState, useMemo } from 'react';
+import { useListProducts } from '../hooks/useQueries';
+import { useListPublicVendors } from '../hooks/useQueries';
+import { useCreateOrder, CreateOrderInput } from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useListProducts, useCreateOrder, useListPublicVendors } from '../hooks/useQueries';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import ProductCard from '../components/ProductCard';
+import OrderConfirmationDialog, { OrderConfirmationData } from '../components/OrderConfirmationDialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Search, Loader2, Store, ExternalLink } from 'lucide-react';
+import { Search, ShoppingBag, Store } from 'lucide-react';
+import { Product } from '@/backend';
 import { toast } from 'sonner';
-import { Product } from '../types';
 
 export default function ShopPage() {
-  const navigate = useNavigate();
   const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity;
+
   const { data: products = [], isLoading: productsLoading } = useListProducts();
   const { data: vendors = [], isLoading: vendorsLoading } = useListPublicVendors();
   const createOrder = useCreateOrder();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedVendor, setSelectedVendor] = useState<string>('');
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const isAuthenticated = !!identity;
+  const [search, setSearch] = useState('');
+  const [vendorFilter, setVendorFilter] = useState<string>('all');
+  const [confirmationData, setConfirmationData] = useState<OrderConfirmationData | null>(null);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
+
+  const vendorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    vendors.forEach((v) => map.set(v.principalId.toString(), v.displayName));
+    return map;
+  }, [vendors]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesSearch =
+        !search ||
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.description.toLowerCase().includes(search.toLowerCase());
+      const matchesVendor =
+        vendorFilter === 'all' || p.vendorId.toString() === vendorFilter;
+      return matchesSearch && matchesVendor;
+    });
+  }, [products, search, vendorFilter]);
+
+  const handleOrderClick = async (product: Product, quantity: number) => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to place an order.');
+      return;
+    }
+
+    setLoadingProductId(product.id);
+    try {
+      const totalAmount = product.price * BigInt(quantity);
+      const input: CreateOrderInput = {
+        productId: product.id,
+        vendorId: product.vendorId,
+        quantity,
+        totalAmount,
+        product,
+      };
+      const order = await createOrder.mutateAsync(input);
+      const vendorName = vendorMap.get(product.vendorId.toString()) ?? 'Unknown Vendor';
+
+      setConfirmationData({
+        orderId: order.id,
+        productName: product.name,
+        vendorName,
+        quantity,
+        totalAmount: order.totalAmount,
+        status: order.status,
+      });
+      setConfirmationOpen(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to place order';
+      toast.error(msg);
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
+
   const isLoading = productsLoading || vendorsLoading;
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesVendor = !selectedVendor || product.vendorId === selectedVendor;
-    return matchesSearch && matchesVendor;
-  });
-
-  const getVendorName = (vendorId: string) => {
-    const vendor = vendors.find((v) => v.principalId === vendorId);
-    return vendor?.displayName || `${vendorId.slice(0, 8)}...`;
-  };
-
-  const handleQuantityChange = (productId: string, value: string) => {
-    const qty = parseInt(value) || 0;
-    setQuantities((prev) => ({ ...prev, [productId]: qty }));
-  };
-
-  const handlePlaceOrder = async (product: Product) => {
-    if (!isAuthenticated) {
-      toast.error('Please log in to place an order');
-      return;
-    }
-
-    const quantity = quantities[product.id] || 1;
-    if (quantity <= 0) {
-      toast.error('Please enter a valid quantity');
-      return;
-    }
-
-    if (quantity > Number(product.stock)) {
-      toast.error('Not enough inventory available');
-      return;
-    }
-
-    try {
-      await createOrder.mutateAsync({
-        vendorId: product.vendorId,
-        productId: product.id,
-        quantity: BigInt(quantity),
-        totalAmount: product.price * BigInt(quantity),
-      });
-      toast.success('Order placed successfully!');
-      setQuantities((prev) => ({ ...prev, [product.id]: 0 }));
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to place order');
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="container py-16 text-center">
-        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-        <p className="text-muted-foreground">Loading products...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="container py-12">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-          <ShoppingCart className="h-10 w-10 text-primary" />
-          Shop
-        </h1>
-        <p className="text-muted-foreground">Browse and purchase products from our vendors</p>
-      </div>
-
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <ShoppingBag className="h-7 w-7 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tight">Shop</h1>
+          </div>
+          <p className="text-muted-foreground">
+            Browse products from verified vendors on the platform.
+          </p>
         </div>
-        {vendors.length > 0 && (
-          <div className="flex gap-2">
-            <select
-              value={selectedVendor}
-              onChange={(e) => setSelectedVendor(e.target.value)}
-              className="px-4 py-2 border rounded-md bg-background flex-1 sm:flex-initial"
-            >
-              <option value="">All Vendors</option>
-              {vendors.map((vendor) => (
-                <option key={vendor.id} value={vendor.principalId}>
-                  {vendor.displayName}
-                </option>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={vendorFilter} onValueChange={setVendorFilter}>
+            <SelectTrigger className="w-full sm:w-56">
+              <Store className="h-4 w-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="All Vendors" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendors.map((v) => (
+                <SelectItem key={v.principalId.toString()} value={v.principalId.toString()}>
+                  {v.displayName}
+                </SelectItem>
               ))}
-            </select>
-            {selectedVendor && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => navigate({ to: `/vendors/${selectedVendor}` })}
-                title="Visit vendor store"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Stats */}
+        {!isLoading && (
+          <div className="flex items-center gap-3 mb-6">
+            <Badge variant="secondary" className="text-sm">
+              {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+            </Badge>
+            {vendorFilter !== 'all' && (
+              <Badge variant="outline" className="text-sm">
+                Filtered by: {vendorMap.get(vendorFilter) ?? vendorFilter}
+              </Badge>
             )}
+          </div>
+        )}
+
+        {/* Product Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-3">
+                <Skeleton className="h-40 w-full rounded-lg" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <img
+              src="/assets/generated/empty-state.dim_300x200.png"
+              alt="No products"
+              className="w-48 mb-6 opacity-70"
+            />
+            <h3 className="text-lg font-semibold mb-2">No products found</h3>
+            <p className="text-muted-foreground text-sm max-w-sm">
+              {search || vendorFilter !== 'all'
+                ? 'Try adjusting your search or filter.'
+                : 'No products are available yet. Check back soon!'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                vendorName={vendorMap.get(product.vendorId.toString())}
+                onOrderClick={handleOrderClick}
+                isLoading={loadingProductId === product.id}
+                isAuthenticated={isAuthenticated}
+              />
+            ))}
           </div>
         )}
       </div>
 
-      {filteredProducts.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <CardTitle className="mb-2">No Products Found</CardTitle>
-            <p className="text-muted-foreground">
-              {searchTerm || selectedVendor
-                ? 'Try adjusting your filters'
-                : 'No products available at the moment'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
-            <Card key={product.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between mb-2">
-                  <CardTitle className="text-lg">{product.name}</CardTitle>
-                  <Badge variant="outline">
-                    {Number(product.stock)} in stock
-                  </Badge>
-                </div>
-                <CardDescription className="line-clamp-2">{product.description}</CardDescription>
-                <div className="flex items-center gap-2 mt-2">
-                  <Store className="h-3 w-3 text-muted-foreground" />
-                  <button
-                    onClick={() => navigate({ to: `/vendors/${product.vendorId}` })}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors underline"
-                  >
-                    {getVendorName(product.vendorId)}
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-                  <span className="text-sm font-medium">Price</span>
-                  <span className="text-lg font-bold text-primary">
-                    {(Number(product.price) / 100000000).toFixed(2)} ICP
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    max={Number(product.stock)}
-                    placeholder="Qty"
-                    value={quantities[product.id] || ''}
-                    onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                    className="w-20"
-                  />
-                  <Button
-                    className="flex-1 gap-2"
-                    onClick={() => handlePlaceOrder(product)}
-                    disabled={createOrder.isPending || !isAuthenticated || Number(product.stock) === 0}
-                  >
-                    {createOrder.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Ordering...
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="h-4 w-4" />
-                        Order
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <OrderConfirmationDialog
+        open={confirmationOpen}
+        onClose={() => {
+          setConfirmationOpen(false);
+          setConfirmationData(null);
+        }}
+        data={confirmationData}
+      />
     </div>
   );
 }

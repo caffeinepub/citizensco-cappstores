@@ -1,47 +1,38 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T03:41:03.673Z",
-  "summary": "The diff shows only 3 files modified: frontend/src/utils/urlParams.ts (a URL parameter utility), frontend-file-summaries.txt (a metadata/summary file), and project_state.json (which only updates status fields, still showing all ARs as 'pending'). None of the actual implementation work for REQ-1, REQ-2, or REQ-3 is present in the diff — no changes to GlobalDashboardPage, useQueries.ts, MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, AdminPanel, index.css, or tailwind.config.js are included.",
+  "generatedAt": "2026-03-02T19:06:53.834Z",
+  "summary": "The diff implements all five requirements. REQ-1 (VendorCard star rating display), REQ-2 (VendorStorePage header rating), REQ-3 (backend getVendorRatingSummary), REQ-4 (useVendorRatingSummary hook in useQueries.ts), and REQ-5 (rating sort option in VendorDirectoryPage) all appear to be addressed. However, the backend/main.mo is truncated so REQ-3's actual query function implementation cannot be fully verified. Minor concerns exist around REQ-2's reactive update claim and REQ-4's hook returning 'count' vs the spec's 'reviewCount' field name.",
   "missing_requirements": [
     {
-      "id": "REQ-1",
-      "requirement": "Wire the GlobalDashboardPage analytics data to live backend calls replacing mock/static values for views, clicks, active campaigns, reward pools, and ad revenue with real React Query hooks.",
-      "reason": "No changes to GlobalDashboardPage or related analytics hooks appear in the diff. The project_state.json still marks AR-1 as 'pending'.",
-      "evidence": [
-        "project_state.json"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "requirement": "Audit all pages still using mock/local data and replace with live React Query hooks; ensure useQueries.ts covers all required backend calls without duplication.",
-      "reason": "No changes to useQueries.ts or any page components are present in the diff. The project_state.json still marks AR-2 as 'pending'.",
-      "evidence": [
-        "project_state.json"
-      ]
-    },
-    {
       "id": "REQ-3",
-      "requirement": "Apply UI polish across MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, and AdminPanel using OKLCH design tokens, fixing spacing, typography, badge styles, and card layouts.",
-      "reason": "No changes to any of the listed page components, index.css, or tailwind.config.js are present in the diff. The project_state.json still marks AR-3 as 'pending'.",
+      "requirement": "A new query function (e.g., getVendorRatingSummary) accepts a vendor ID and returns the average rating and total review count as a Result or optional record with averageRating (Float) and reviewCount (Nat)",
+      "reason": "The backend/main.mo diff is truncated and the actual getVendorRatingSummary query function body is not visible. The ReviewsAggregate type uses 'count' rather than 'reviewCount' as specified. Whether the dedicated query function exists and is correct cannot be confirmed from the truncated file.",
       "evidence": [
-        "project_state.json"
+        "backend/main.mo"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "URL parameter persistence utility (urlParams.ts) with functions for extracting URL params from hash-based routing, storing/retrieving from sessionStorage, and clearing params from URL hash.",
-      "reason": "This utility was not requested in any of the three requirements (REQ-1, REQ-2, REQ-3) and is not mentioned in the build request scope.",
+      "description": "A backend/migration.mo file was added with full data type definitions and a migration run function enabling stable memory migration support",
+      "reason": "The build request makes no mention of adding a migration module or stable memory migration support. This is extra infrastructure not requested.",
       "evidence": [
-        "frontend/src/utils/urlParams.ts"
+        "backend/migration.mo"
       ]
     }
   ],
-  "confidence": 0.95,
+  "confidence": 0.72,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
+    "frontend/src/components/VendorCard.tsx",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/VendorDirectoryPage.tsx",
+    "frontend/src/pages/VendorStorePage.tsx",
     "frontend/src/utils/urlParams.ts",
+    "frontend/src/utils/vendorDiscovery.ts",
     "project_state.json"
   ]
 }

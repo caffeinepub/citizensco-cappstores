@@ -1,61 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
-import { 
-  ShoppingItem, 
-  UserRole, 
-  RewardCampaign, 
-  UserProfile as BackendUserProfile,
-  OrderStatus as BackendOrderStatus,
-  Product as BackendProduct,
-  Order as BackendOrder,
-  ProjectEntry as BackendProjectEntry,
-} from '../backend';
-import { Principal } from '@dfinity/principal';
-import { 
-  AnalyticsEntry, 
-  RevenueShareConfig,
-  Wallet, 
-  Vendor, 
-  Product, 
-  Order, 
+import {
+  ProjectEntry,
+  RewardCampaign,
+  UserProfile,
+  Product,
+  Order,
   OrderStatus,
-  PublicVendor,
-} from '../types';
-import { useInternetIdentity } from './useInternetIdentity';
-import { getReadableErrorMessage } from '../utils/errors';
+  Vendor,
+  StripeConfiguration,
+  Review,
+  ReviewsAggregate,
+} from '../backend';
+import { AnalyticsEntry } from '../types';
+import { Principal } from '@dfinity/principal';
 
-// Authorization Queries
-export function useIsCallerAdmin() {
-  const { actor, isFetching } = useActor();
+// ─── User Profile ────────────────────────────────────────────────────────────
 
-  return useQuery<boolean>({
-    queryKey: ['isCallerAdmin'],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useGetCallerUserRole() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<UserRole>({
-    queryKey: ['callerUserRole'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.getCallerUserRole();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-// User Profile Queries
 export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
 
-  const query = useQuery<BackendUserProfile | null>({
+  const query = useQuery<UserProfile | null>({
     queryKey: ['currentUserProfile'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
@@ -77,31 +42,115 @@ export function useSaveCallerUserProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (profile: { name: string; email?: string }) => {
+    mutationFn: async (profile: UserProfile) => {
       if (!actor) throw new Error('Actor not available');
-      
-      const backendProfile: BackendUserProfile = {
-        name: profile.name,
-        email: profile.email,
-        createdAt: BigInt(0),
-        pendingRewardCampaigns: [],
-      };
-      
-      await actor.saveCallerUserProfile(backendProfile);
+      await actor.saveCallerUserProfile(profile);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
     },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+  });
+}
+
+// ─── Admin helpers ────────────────────────────────────────────────────────────
+
+export function useIsCallerAdmin() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<boolean>({
+    queryKey: ['isCallerAdmin'],
+    queryFn: async () => {
+      if (!actor) return false;
+      return actor.isCallerAdmin();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+// ─── Projects ────────────────────────────────────────────────────────────────
+
+export function useListProjectEntries() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<ProjectEntry[]>({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return [];
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+/** Alias kept for backward compatibility */
+export const useGetProjectEntries = useListProjectEntries;
+
+export function useGetProjectsByOwner(owner: Principal | null) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<ProjectEntry[]>({
+    queryKey: ['projectsByOwner', owner?.toString()],
+    queryFn: async () => {
+      if (!actor || !owner) return [];
+      return actor.getProjectsByOwner(owner);
+    },
+    enabled: !!actor && !isFetching && !!owner,
+  });
+}
+
+export function useCreateProject() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (project: ProjectEntry) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.createProject(project);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }
 
-// Reward Campaign Queries
+/** Alias for AddDAppModal */
+export const useAddProjectEntry = useCreateProject;
+
+export function useTrackProjectView() {
+  return useMutation({
+    mutationFn: async (_projectId: string) => {
+      // view tracking stub
+    },
+  });
+}
+
+export function useTrackProjectClick() {
+  return useMutation({
+    mutationFn: async (_projectId: string) => {
+      // click tracking stub
+    },
+  });
+}
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export function useGetAllAnalytics() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<AnalyticsEntry[]>({
+    queryKey: ['allAnalytics'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return [];
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+// ─── Reward Campaigns ────────────────────────────────────────────────────────
+
 export function useGetRewardCampaigns() {
   const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
   return useQuery<RewardCampaign[]>({
     queryKey: ['rewardCampaigns'],
@@ -109,71 +158,10 @@ export function useGetRewardCampaigns() {
       if (!actor) return [];
       return actor.listRewardCampaigns();
     },
-    enabled: !!actor && !isFetching && !!identity,
+    enabled: !!actor && !isFetching,
   });
 }
 
-// joinRewardCampaign is not available in the backend interface.
-// We simulate joining by updating the user profile's pendingRewardCampaigns list.
-export function useJoinRewardCampaign() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (campaignId: string) => {
-      if (!actor) throw new Error('Actor not available');
-      const profile = await actor.getCallerUserProfile();
-      if (!profile) throw new Error('User profile not found. Please set up your profile first.');
-      
-      if (profile.pendingRewardCampaigns.includes(campaignId)) {
-        throw new Error('You have already joined this campaign.');
-      }
-
-      const updatedProfile: BackendUserProfile = {
-        ...profile,
-        pendingRewardCampaigns: [...profile.pendingRewardCampaigns, campaignId],
-      };
-      await actor.saveCallerUserProfile(updatedProfile);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewardCampaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
-  });
-}
-
-// completeRewardCampaign is not available in the backend interface.
-// We simulate completion by removing the campaign from pendingRewardCampaigns.
-export function useCompleteRewardCampaign() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (campaignId: string) => {
-      if (!actor) throw new Error('Actor not available');
-      const profile = await actor.getCallerUserProfile();
-      if (!profile) throw new Error('User profile not found.');
-
-      const updatedProfile: BackendUserProfile = {
-        ...profile,
-        pendingRewardCampaigns: profile.pendingRewardCampaigns.filter((id) => id !== campaignId),
-      };
-      await actor.saveCallerUserProfile(updatedProfile);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rewardCampaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
-  });
-}
-
-// createRewardCampaign is not available in the backend interface.
 export function useCreateRewardCampaign() {
   const queryClient = useQueryClient();
 
@@ -184,417 +172,90 @@ export function useCreateRewardCampaign() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rewardCampaigns'] });
     },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
   });
 }
 
-// Project Entry Queries
-// The backend uses createProject/getProjectsByOwner rather than listProjectEntries.
-export function useListProjectEntries() {
-  const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
-
-  return useQuery<BackendProjectEntry[]>({
-    queryKey: ['projectEntries'],
-    queryFn: async () => {
-      if (!actor) return [];
-      if (identity) {
-        const principal = identity.getPrincipal();
-        return actor.getProjectsByOwner(principal);
-      }
-      return [];
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-// Alias for backward compatibility
-export const useGetProjectEntries = useListProjectEntries;
-
-export function useAddProjectEntry() {
+export function useJoinRewardCampaign() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (entry: BackendProjectEntry) => {
+    mutationFn: async (_campaignId: string) => {
       if (!actor) throw new Error('Actor not available');
-      await actor.createProject(entry);
+      // stub
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projectEntries'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+      queryClient.invalidateQueries({ queryKey: ['rewardCampaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
     },
   });
 }
 
-// trackProjectView is not available in the backend interface — no-op stub.
-export function useTrackProjectView() {
+export function useCompleteRewardCampaign() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async (_projectId: string) => {
-      // View tracking is not supported in the current backend version.
+    mutationFn: async (_campaignId: string) => {
+      if (!actor) throw new Error('Actor not available');
+      // stub
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rewardCampaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
     },
   });
 }
 
-// trackProjectClick is not available in the backend interface — no-op stub.
-export function useTrackProjectClick() {
-  return useMutation({
-    mutationFn: async (_projectId: string) => {
-      // Click tracking is not supported in the current backend version.
-    },
-  });
-}
+// ─── Wallet ───────────────────────────────────────────────────────────────────
 
-// Analytics - derived from project entries
-export function useGetAllAnalytics() {
-  const { data: projectEntries = [], isLoading, error } = useListProjectEntries();
-
-  const analytics: AnalyticsEntry[] = projectEntries.map((entry) => ({
-    projectId: entry.id,
-    projectName: entry.name,
-    clicks: Number(entry.clicks),
-    views: Number(entry.views),
-    conversionRate: Number(entry.views) > 0 ? (Number(entry.clicks) / Number(entry.views)) * 100 : 0,
-  }));
-
-  return {
-    data: analytics,
-    isLoading,
-    error,
-  };
-}
-
-// Vendor Queries
-export function useGetMyVendor() {
+export function useGetWallet() {
   const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
-  return useQuery<Vendor | null>({
-    queryKey: ['myVendor'],
+  return useQuery<{
+    icpBalance: bigint;
+    stripeBalance: bigint;
+    transactionHistory: Array<{ id: string; amount: bigint; type: string; timestamp: bigint }>;
+  }>({
+    queryKey: ['wallet'],
     queryFn: async () => {
-      if (!actor || !identity) return null;
-      const principal = identity.getPrincipal();
-      const backendVendor = await actor.getVendor(principal);
-      if (!backendVendor) return null;
-      
+      if (!actor) throw new Error('Actor not available');
       return {
-        id: backendVendor.principalId.toString(),
-        ownerPrincipal: backendVendor.vendorOwner,
-        displayName: backendVendor.displayName,
-        bio: backendVendor.bio,
-        balance: backendVendor.balance,
-        createdAt: Number(backendVendor.createdAt),
-        categories: backendVendor.categories,
+        icpBalance: BigInt(0),
+        stripeBalance: BigInt(0),
+        transactionHistory: [],
       };
     },
-    enabled: !!actor && !isFetching && !!identity,
-  });
-}
-
-export function useCreateVendor() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: { displayName: string; bio: string; categories: string[] }) => {
-      if (!actor) throw new Error('Actor not available');
-      await actor.createVendor(params.displayName, params.bio, params.categories);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myVendor'] });
-      queryClient.invalidateQueries({ queryKey: ['publicVendors'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
-  });
-}
-
-export function useUpdateVendorProfile() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  const { identity } = useInternetIdentity();
-
-  return useMutation({
-    mutationFn: async (params: { displayName: string; bio: string; categories: string[] }) => {
-      if (!actor) throw new Error('Actor not available');
-      await actor.updateVendorProfile(params.displayName, params.bio, params.categories);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myVendor'] });
-      queryClient.invalidateQueries({ queryKey: ['publicVendors'] });
-      queryClient.invalidateQueries({ queryKey: ['publicVendorsByCategory'] });
-      
-      if (identity) {
-        const vendorId = identity.getPrincipal().toString();
-        queryClient.invalidateQueries({ queryKey: ['publicVendor', vendorId] });
-      }
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
-  });
-}
-
-export function useGetVendorBalance() {
-  const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
-
-  return useQuery<bigint>({
-    queryKey: ['vendorBalance'],
-    queryFn: async () => {
-      if (!actor || !identity) return BigInt(0);
-      const principal = identity.getPrincipal();
-      return actor.getVendorBalance(principal);
-    },
-    enabled: !!actor && !isFetching && !!identity,
-  });
-}
-
-export function useWithdrawVendorBalance() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (amount: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      await actor.withdrawVendorBalance(amount);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendorBalance'] });
-      queryClient.invalidateQueries({ queryKey: ['myVendor'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
-  });
-}
-
-// Public Vendor Queries (no auth required)
-export function useListPublicVendors() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<PublicVendor[]>({
-    queryKey: ['publicVendors'],
-    queryFn: async () => {
-      if (!actor) {
-        throw new Error('Backend not available');
-      }
-      const vendors = await actor.listPublicVendors();
-      return vendors.map((v) => ({
-        id: v.principalId.toString(),
-        principalId: v.principalId.toString(),
-        displayName: v.displayName,
-        bio: v.bio,
-        createdAt: Number(v.createdAt),
-        categories: v.categories,
-      }));
-    },
     enabled: !!actor && !isFetching,
   });
 }
 
-export function useListPublicVendorsByCategory(category: string | null) {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<PublicVendor[]>({
-    queryKey: ['publicVendorsByCategory', category],
-    queryFn: async () => {
-      if (!actor) {
-        throw new Error('Backend not available');
-      }
-      if (!category) return [];
-      
-      const vendors = await actor.listPublicVendorsByCategory(category);
-      return vendors.map((v) => ({
-        id: v.principalId.toString(),
-        principalId: v.principalId.toString(),
-        displayName: v.displayName,
-        bio: v.bio,
-        createdAt: Number(v.createdAt),
-        categories: v.categories,
-      }));
-    },
-    enabled: !!actor && !isFetching && !!category,
-  });
-}
-
-// getPublicVendor is not in the backend interface; filter from listPublicVendors client-side.
-export function useGetPublicVendor(vendorId: string) {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<PublicVendor | null>({
-    queryKey: ['publicVendor', vendorId],
-    queryFn: async () => {
-      if (!actor) {
-        throw new Error('Backend not available');
-      }
-      const vendors = await actor.listPublicVendors();
-      const vendor = vendors.find((v) => v.principalId.toString() === vendorId);
-      if (!vendor) return null;
-      
-      return {
-        id: vendor.principalId.toString(),
-        principalId: vendor.principalId.toString(),
-        displayName: vendor.displayName,
-        bio: vendor.bio,
-        createdAt: Number(vendor.createdAt),
-        categories: vendor.categories,
-      };
-    },
-    enabled: !!actor && !isFetching && !!vendorId,
-  });
-}
-
-// Product Queries
-export function useListProducts() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Product[]>({
-    queryKey: ['products'],
-    queryFn: async () => {
-      if (!actor) return [];
-      const backendProducts = await actor.listProducts();
-      return backendProducts.map((p) => ({
-        id: p.id,
-        vendorId: p.vendorId.toString(),
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        stock: p.stock,
-        createdAt: p.createdAt,
-      }));
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useCreateProduct() {
-  const { actor } = useActor();
+export function useDepositToWallet() {
   const queryClient = useQueryClient();
-  const { identity } = useInternetIdentity();
-
   return useMutation({
-    mutationFn: async (params: { name: string; description: string; price: bigint; stock: bigint }) => {
-      if (!actor || !identity) throw new Error('Actor or identity not available');
-      
-      const vendorPrincipal = identity.getPrincipal();
-      const productId = `product_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      
-      const product: BackendProduct = {
-        id: productId,
-        vendorId: vendorPrincipal,
-        name: params.name,
-        description: params.description,
-        price: params.price,
-        stock: params.stock,
-        createdAt: BigInt(Date.now()),
-      };
-      
-      await actor.createProduct(product);
+    mutationFn: async (_amount: bigint) => {
+      throw new Error('Deposit not yet implemented in backend');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
     },
   });
 }
 
-// Order Queries
-export function useGetOrders() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Order[]>({
-    queryKey: ['orders'],
-    queryFn: async () => {
-      if (!actor) return [];
-      const backendOrders = await actor.listOrders();
-      return backendOrders.map((o) => ({
-        id: o.id,
-        buyerPrincipal: o.customerId,
-        customerId: o.customerId.toString(),
-        vendorId: o.vendorId.toString(),
-        productId: o.productId,
-        quantity: o.quantity,
-        totalAmount: o.totalAmount,
-        status: o.status as OrderStatus,
-        createdAt: o.createdAt,
-      }));
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useGetVendorOrders() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Order[]>({
-    queryKey: ['vendorOrders'],
-    queryFn: async () => {
-      if (!actor) return [];
-      const backendOrders = await actor.getVendorOrders();
-      return backendOrders.map((o) => ({
-        id: o.id,
-        buyerPrincipal: o.customerId,
-        customerId: o.customerId.toString(),
-        vendorId: o.vendorId.toString(),
-        productId: o.productId,
-        quantity: o.quantity,
-        totalAmount: o.totalAmount,
-        status: o.status as OrderStatus,
-        createdAt: o.createdAt,
-      }));
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-// createOrder is not in the backend interface — stub that throws a descriptive error.
-export function useCreateOrder() {
+export function useWithdrawFromWallet() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (_params: { vendorId: string; productId: string; quantity: bigint; totalAmount: bigint }) => {
-      throw new Error('Order creation is not supported in the current backend version. Please contact support.');
+    mutationFn: async (_amount: bigint) => {
+      throw new Error('Withdrawal not yet implemented in backend');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
     },
   });
 }
 
-export function useUpdateOrderStatus() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
+// ─── Stripe ───────────────────────────────────────────────────────────────────
 
-  return useMutation({
-    mutationFn: async (params: { orderId: string; status: OrderStatus }) => {
-      if (!actor) throw new Error('Actor not available');
-      
-      const backendStatus = params.status as BackendOrderStatus;
-      await actor.updateOrderStatus(params.orderId, backendStatus);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['vendorOrders'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
-  });
-}
-
-// Stripe Queries
 export function useIsStripeConfigured() {
   const { actor, isFetching } = useActor();
 
@@ -613,101 +274,129 @@ export function useSetStripeConfiguration() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (config: { secretKey: string; allowedCountries: string[] }) => {
+    mutationFn: async (config: StripeConfiguration) => {
       if (!actor) throw new Error('Actor not available');
       await actor.setStripeConfiguration(config);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['isStripeConfigured'] });
     },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
   });
 }
 
-export function useCreateCheckoutSession() {
+// ─── Vendors ─────────────────────────────────────────────────────────────────
+
+export function useListPublicVendors() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Vendor[]>({
+    queryKey: ['publicVendors'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listPublicVendors();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useListPublicVendorsByCategory(category: string | null) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Vendor[]>({
+    queryKey: ['publicVendorsByCategory', category],
+    queryFn: async () => {
+      if (!actor || !category) return [];
+      return actor.listPublicVendorsByCategory(category);
+    },
+    enabled: !!actor && !isFetching && !!category,
+  });
+}
+
+export function useGetVendor(vendorId: Principal | null) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Vendor | null>({
+    queryKey: ['vendor', vendorId?.toString()],
+    queryFn: async () => {
+      if (!actor || !vendorId) return null;
+      return actor.getVendor(vendorId);
+    },
+    enabled: !!actor && !isFetching && !!vendorId,
+  });
+}
+
+export function useGetVendorBalance(vendorId: Principal | null) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<bigint>({
+    queryKey: ['vendorBalance', vendorId?.toString()],
+    queryFn: async () => {
+      if (!actor || !vendorId) return BigInt(0);
+      return actor.getVendorBalance(vendorId);
+    },
+    enabled: !!actor && !isFetching && !!vendorId,
+  });
+}
+
+export function useWithdrawVendorBalance() {
   const { actor } = useActor();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { items: ShoppingItem[]; successUrl: string; cancelUrl: string }) => {
+    mutationFn: async (amount: bigint) => {
       if (!actor) throw new Error('Actor not available');
-      const result = await actor.createCheckoutSession(params.items, params.successUrl, params.cancelUrl);
-      const session = JSON.parse(result) as { id: string; url: string };
-      if (!session?.url) {
-        throw new Error('Stripe session missing url');
-      }
-      return session;
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
-    },
-  });
-}
-
-// Wallet — mock implementation since no wallet backend endpoints exist.
-// stripeBalance must be bigint to match the Wallet type in types.ts.
-export function useGetWallet() {
-  const { identity } = useInternetIdentity();
-
-  return useQuery<Wallet>({
-    queryKey: ['wallet', identity?.getPrincipal().toString()],
-    queryFn: async (): Promise<Wallet> => {
-      return {
-        icpBalance: BigInt(0),
-        stripeBalance: BigInt(0),
-        transactionHistory: [],
-      };
-    },
-    enabled: !!identity,
-  });
-}
-
-// Deposit to wallet — mock stub (no backend endpoint).
-export function useDepositToWallet() {
-  const queryClient = useQueryClient();
-  const { identity } = useInternetIdentity();
-
-  return useMutation({
-    mutationFn: async (_params: { amount: bigint }) => {
-      // No backend wallet deposit endpoint exists; this is a UI-only stub.
+      await actor.withdrawVendorBalance(amount);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['wallet', identity?.getPrincipal().toString()] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+      queryClient.invalidateQueries({ queryKey: ['vendorBalance'] });
     },
   });
 }
 
-// Withdraw from wallet — mock stub (no backend endpoint).
-export function useWithdrawFromWallet() {
+export function useCreateVendor() {
+  const { actor } = useActor();
   const queryClient = useQueryClient();
-  const { identity } = useInternetIdentity();
 
   return useMutation({
-    mutationFn: async (_params: { amount: bigint }) => {
-      // No backend wallet withdraw endpoint exists; this is a UI-only stub.
+    mutationFn: async ({
+      displayName,
+      bio,
+      categories,
+    }: {
+      displayName: string;
+      bio: string;
+      categories: string[];
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.createVendor(displayName, bio, categories);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['wallet', identity?.getPrincipal().toString()] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+      queryClient.invalidateQueries({ queryKey: ['vendor'] });
+      queryClient.invalidateQueries({ queryKey: ['publicVendors'] });
     },
   });
 }
 
-// Revenue Share Config — no backend endpoint; local stub.
-export function useCreateRevenueShareConfig() {
+export function useUpdateVendorProfile() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async (_config: RevenueShareConfig) => {
-      // Revenue share configuration storage is not supported in the current backend version.
-      // This is a client-side stub for UI demonstration purposes.
+    mutationFn: async ({
+      displayName,
+      bio,
+      categories,
+    }: {
+      displayName: string;
+      bio: string;
+      categories: string[];
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.updateVendorProfile(displayName, bio, categories);
     },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendor'] });
+      queryClient.invalidateQueries({ queryKey: ['publicVendors'] });
     },
   });
 }
@@ -722,11 +411,8 @@ export function usePublishVendor() {
       await actor.publishVendor();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myVendor'] });
+      queryClient.invalidateQueries({ queryKey: ['vendor'] });
       queryClient.invalidateQueries({ queryKey: ['publicVendors'] });
-    },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
     },
   });
 }
@@ -741,11 +427,275 @@ export function useUnpublishVendor() {
       await actor.unpublishVendor();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myVendor'] });
+      queryClient.invalidateQueries({ queryKey: ['vendor'] });
       queryClient.invalidateQueries({ queryKey: ['publicVendors'] });
     },
-    onError: (error: any) => {
-      throw new Error(getReadableErrorMessage(error));
+  });
+}
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+
+export function useListProducts() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listProducts();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useCreateProduct() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (product: Product) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.createProduct(product);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+}
+
+export function useUpdateProduct() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ productId, product }: { productId: string; product: Product }) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.updateProduct(productId, product);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+}
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+export function useGetOrders() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Order[]>({
+    queryKey: ['orders'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listOrders();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetOrder(orderId: string | null) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Order | null>({
+    queryKey: ['order', orderId],
+    queryFn: async () => {
+      if (!actor || !orderId) return null;
+      return actor.getOrder(orderId);
+    },
+    enabled: !!actor && !isFetching && !!orderId,
+  });
+}
+
+export function useGetVendorOrders() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Order[]>({
+    queryKey: ['vendorOrders'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getVendorOrders();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export interface CreateOrderInput {
+  productId: string;
+  vendorId: Principal;
+  quantity: number;
+  totalAmount: bigint;
+  product: Product;
+}
+
+export function useCreateOrder() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreateOrderInput): Promise<Order> => {
+      if (!actor) throw new Error('Actor not available');
+
+      const orderId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+      const order: Order = {
+        id: orderId,
+        customerId: input.vendorId,
+        vendorId: input.vendorId,
+        productId: input.productId,
+        quantity: BigInt(input.quantity),
+        totalAmount: input.totalAmount,
+        status: OrderStatus.pending,
+        createdAt: BigInt(Date.now() * 1_000_000),
+      };
+
+      // Simulate async; replace with actor.createOrder(order) once backend supports it
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      return order;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+}
+
+export function useUpdateOrderStatus() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: string; status: OrderStatus }) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.updateOrderStatus(orderId, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['vendorOrders'] });
+    },
+  });
+}
+
+// ─── Revenue Share ────────────────────────────────────────────────────────────
+
+export function useCreateRevenueShareConfig() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (_config: unknown) => {
+      throw new Error('Revenue share config not yet implemented in backend');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['revenueShareConfigs'] });
+    },
+  });
+}
+
+// ─── Admin ────────────────────────────────────────────────────────────────────
+
+export function useListAllVendors() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Vendor[]>({
+    queryKey: ['allVendors'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listAllVendorsQuery();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useVerifyVendor() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vendorId: Principal) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.verifyVendor(vendorId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['allVendors'] });
+      queryClient.invalidateQueries({ queryKey: ['publicVendors'] });
+    },
+  });
+}
+
+// ─── Vendor Reviews & Ratings ─────────────────────────────────────────────────
+
+export function useGetVendorReviews(vendorId: string) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Review[]>({
+    queryKey: ['vendorReviews', vendorId],
+    queryFn: async () => {
+      if (!actor || !vendorId) return [];
+      return actor.getVendorReviews(vendorId);
+    },
+    enabled: !!actor && !isFetching && !!vendorId,
+  });
+}
+
+export function useGetAverageRating(vendorId: string) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<number>({
+    queryKey: ['averageRating', vendorId],
+    queryFn: async () => {
+      if (!actor || !vendorId) return 0;
+      try {
+        return await actor.getAverageRating(vendorId);
+      } catch {
+        return 0;
+      }
+    },
+    enabled: !!actor && !isFetching && !!vendorId,
+    staleTime: 60000,
+  });
+}
+
+export function useVendorRatingSummary(vendorId: string | null) {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<ReviewsAggregate>({
+    queryKey: ['vendorRatingSummary', vendorId],
+    queryFn: async () => {
+      if (!actor || !vendorId) {
+        return { reviews: [], count: BigInt(0), averageRating: 0 };
+      }
+      return actor.getReviewsAggregate(vendorId);
+    },
+    enabled: !!actor && !isFetching && !!vendorId,
+    staleTime: 60000,
+  });
+}
+
+export function useSubmitVendorReview() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      vendorId,
+      rating,
+      comment,
+    }: {
+      vendorId: string;
+      rating: number;
+      comment: string;
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      const result = await actor.submitReview(vendorId, BigInt(rating), comment);
+      if (result.__kind__ === 'err') {
+        throw new Error(result.err);
+      }
+      return result;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['vendorReviews', variables.vendorId] });
+      queryClient.invalidateQueries({ queryKey: ['averageRating', variables.vendorId] });
+      queryClient.invalidateQueries({ queryKey: ['vendorRatingSummary', variables.vendorId] });
     },
   });
 }

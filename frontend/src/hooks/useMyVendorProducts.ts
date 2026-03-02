@@ -1,20 +1,14 @@
-import { useMemo } from 'react';
-import { useGetMyVendor, useListProducts } from './useQueries';
+import { useListProducts } from './useQueries';
+import { Product } from '../backend';
 
-export function useMyVendorProducts() {
-  const { data: vendor } = useGetMyVendor();
-  const { data: allProducts = [], isLoading } = useListProducts();
+export function useMyVendorProducts(vendorId: string | null | undefined) {
+  const { data: allProducts = [], isLoading, error } = useListProducts();
 
-  const products = useMemo(() => {
-    if (!vendor) return [];
-    return allProducts.filter(product => product.vendorId === vendor.id);
-  }, [vendor, allProducts]);
+  const products: Product[] = vendorId
+    ? allProducts.filter((p) => p.vendorId.toString() === vendorId)
+    : [];
 
   const hasProducts = products.length > 0;
 
-  return {
-    products,
-    isLoading,
-    hasProducts,
-  };
+  return { products, isLoading, error, hasProducts };
 }

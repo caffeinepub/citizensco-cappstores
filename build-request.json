@@ -1,74 +1,109 @@
 {
   "kind": "build_request",
-  "title": "Stage 7 — Analytics Wiring, Remaining Integration & UI Polish",
+  "title": "Stage 11 – Vendor Reviews & Ratings (Next Part)",
   "projectName": "CitizensCo CAppStores",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Wire the GlobalDashboardPage analytics data to live backend calls: replace any remaining mock/static values for platform-wide views, clicks, active campaigns, reward pools, and ad revenue with real data fetched via React Query hooks against the backend actor.",
+      "text": "Implement average rating display on the VendorCard/VendorDirectoryPage: compute and show a star rating badge (average of all reviews) for each vendor in the directory listing, using the existing review data from the backend.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-1"
         ],
         "quotes": [
-          "If next is Stage 7 please go ahead"
+          "Next part of Stage 11 please"
         ]
       },
       "acceptanceCriteria": [
-        "GlobalDashboardPage displays live totals for views, clicks, active campaigns, reward pool balance, and ad revenue sourced from the backend.",
-        "No hardcoded or mock numeric values remain in GlobalDashboardPage for the above metrics.",
-        "Data refreshes correctly when the underlying backend state changes."
+        "Each vendor card in the VendorDirectoryPage displays an average star rating (1–5) computed from their reviews",
+        "If a vendor has no reviews, display a 'No reviews yet' indicator instead of a rating",
+        "Rating is visually represented with filled/empty stars or a numeric badge consistent with the existing design system"
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Complete remaining frontend-backend integration tasks identified in the pending action requests (AR-2, AR-3, AR-5 in project_state.json): audit all pages and components still using mock or local data and replace them with live React Query hooks that call the backend actor.",
+      "text": "Add average rating and review count display to the VendorStorePage public storefront header, pulling data from the existing reviews query so visitors can see the vendor's overall rating at a glance.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-1"
         ],
         "quotes": [
-          "If next is Stage 7 please go ahead"
+          "Next part of Stage 11 please"
         ]
       },
       "acceptanceCriteria": [
-        "All pages listed in frontend/EXECUTION_PLAN.md that were flagged as pending or in-progress are now sourcing data from the live backend.",
-        "No frontend component renders static/mock data for fields that have a corresponding backend endpoint.",
-        "React Query hooks in useQueries.ts cover all required backend calls without duplication."
+        "VendorStorePage header/hero section shows the vendor's average star rating and total review count",
+        "Data is derived from the same reviews query already used by VendorReviewsSection",
+        "Display updates reactively when new reviews are submitted"
       ]
     },
     {
       "id": "REQ-3",
-      "text": "Apply UI polish across all pages: ensure consistent use of the OKLCH design tokens defined in index.css and tailwind.config.js, fix any visual inconsistencies in spacing, typography, badge styles, and card layouts across MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, and the AdminPanel.",
+      "text": "Add backend support for retrieving all reviews for a given vendor as an aggregate (average rating + count) via a dedicated query function, so the frontend can efficiently fetch summary stats without loading full review objects for listing pages.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Next part of Stage 11 please"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A new query function (e.g., getVendorRatingSummary) accepts a vendor ID and returns the average rating and total review count",
+        "Returns a Result or optional record with averageRating (Float) and reviewCount (Nat)",
+        "Existing review storage and submission logic is unchanged"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Expose the new getVendorRatingSummary backend query in useQueries.ts as a React Query hook (e.g., useVendorRatingSummary(vendorId)), and use it in VendorDirectoryPage and VendorStorePage for displaying aggregate rating stats.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-1"
         ],
         "quotes": [
-          "If next is Stage 7 please go ahead"
+          "Next part of Stage 11 please"
         ]
       },
       "acceptanceCriteria": [
-        "All pages use the OKLCH color tokens from the design system for backgrounds, text, borders, and interactive elements.",
-        "Card, badge, and table styles are visually consistent across all listed pages.",
-        "Light and dark theme variants render correctly on all polished pages.",
-        "No inline style overrides that conflict with the Tailwind token system remain."
+        "useVendorRatingSummary hook is added to frontend/src/hooks/useQueries.ts",
+        "Hook accepts a vendorId parameter and returns averageRating and reviewCount",
+        "Hook is consumed by VendorDirectoryPage vendor cards and VendorStorePage header"
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Add a sortable 'Rating' column/option to VendorDirectoryPage so users can sort vendors by their average rating (highest-rated first), leveraging the existing sort controls and vendorDiscovery utility helpers.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Next part of Stage 11 please"
+        ]
+      },
+      "acceptanceCriteria": [
+        "VendorDirectoryPage sort controls include a 'Top Rated' or 'Rating' option alongside existing name/date sorts",
+        "Selecting 'Rating' sorts vendors descending by average rating",
+        "Sort option syncs to URL params consistent with existing sort param handling"
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
-    "All Motoko logic must remain in the single backend/main.mo actor.",
-    "Only generate migration.mo if backend state shape changes are required."
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
+    "All Motoko logic must remain in the single backend/main.mo actor",
+    "Reuse existing review data structures and query patterns already established in the codebase"
   ],
   "nonGoals": [
-    "Adding new backend endpoints not already planned in the execution plan.",
-    "Redesigning the overall visual theme or brand identity.",
-    "Implementing features outside the scope of AR-2, AR-3, and AR-5."
+    "Rebuilding or replacing the existing VendorReviewsSection review submission form",
+    "Adding moderation or flagging of reviews",
+    "Paginating reviews on the directory page"
   ],
   "imageRequirements": {
     "required": [],

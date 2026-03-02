@@ -1,6 +1,5 @@
 import AccessControl "authorization/access-control";
 import OutCall "http-outcalls/outcall";
-
 import Runtime "mo:core/Runtime";
 import Map "mo:core/Map";
 import Array "mo:core/Array";
@@ -13,8 +12,12 @@ import Storage "blob-storage/Storage";
 import Time "mo:core/Time";
 import MixinStorage "blob-storage/Mixin";
 import MixinAuthorization "authorization/MixinAuthorization";
+import Nat "mo:core/Nat";
+import Int "mo:core/Int";
+import Float "mo:core/Float";
+import Migration "migration";
 
-
+(with migration = Migration.run)
 actor {
   include MixinStorage();
 
@@ -29,6 +32,7 @@ actor {
   let products = Map.empty<Text, Product>();
   let orders = Map.empty<Text, Order>();
   let userProfiles = Map.empty<Principal, UserProfile>();
+  let reviews = Map.empty<Text, Review>();
 
   // User types/records
   public type UserProfile = {
@@ -36,6 +40,22 @@ actor {
     email : ?Text;
     createdAt : Int;
     pendingRewardCampaigns : [Text];
+  };
+
+  // Vendor Review types/records
+  public type Review = {
+    reviewId : Text;
+    vendorId : Text;
+    authorPrincipal : Principal;
+    rating : Nat;
+    comment : Text;
+    createdAt : Int;
+  };
+
+  public type ReviewsAggregate = {
+    reviews : [Review];
+    count : Nat;
+    averageRating : Float;
   };
 
   // Reward campaign types/records
@@ -127,8 +147,9 @@ actor {
   };
 
   public shared ({ caller }) func setStripeConfiguration(config : Stripe.StripeConfiguration) : async () {
-    let isAdmin = AccessControl.hasPermission(accessControlState, caller, #admin);
-    if (not isAdmin) { Runtime.trap("Unauthorized: Only admins can set Stripe configuration") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #admin)) {
+      Runtime.trap("Unauthorized: Only admins can set Stripe configuration");
+    };
     stripeConfig := ?config;
   };
 
@@ -140,14 +161,16 @@ actor {
   };
 
   public shared ({ caller }) func getStripeSessionStatus(sessionId : Text) : async Stripe.StripeSessionStatus {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can get Stripe session status") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can get Stripe session status");
+    };
     await Stripe.getSessionStatus(getStripeConfiguration(), sessionId, transform);
   };
 
   public shared ({ caller }) func createCheckoutSession(items : [Stripe.ShoppingItem], successUrl : Text, cancelUrl : Text) : async Text {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can create checkout sessions") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can create checkout sessions");
+    };
     await Stripe.createCheckoutSession(getStripeConfiguration(), caller, items, successUrl, cancelUrl, transform);
   };
 
@@ -161,14 +184,16 @@ actor {
 
   // User profile management
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can view their profile") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can view their profile");
+    };
     userProfiles.get(caller);
   };
 
   public shared ({ caller }) func saveCallerUserProfile(userProfile : UserProfile) : async () {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can save their profile") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can save their profile");
+    };
     let existing = userProfiles.get(caller);
     let createdAt = switch (existing) {
       case (?p) { p.createdAt };
@@ -194,8 +219,9 @@ actor {
   };
 
   public shared ({ caller }) func createUserProfile(userProfile : UserProfile) : async () {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can create a profile") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can create a profile");
+    };
     let newUserProfile : UserProfile = {
       name = userProfile.name;
       email = userProfile.email;
@@ -206,8 +232,9 @@ actor {
   };
 
   public shared ({ caller }) func finishOnboarding() : async () {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can finish onboarding") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can finish onboarding");
+    };
     userProfiles.remove(caller);
   };
 
@@ -222,8 +249,9 @@ actor {
 
   // Projects
   public shared ({ caller }) func createProject(project : ProjectEntry) : async () {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can create projects") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can create projects");
+    };
     projects.add(project.id, project);
   };
 
@@ -248,7 +276,7 @@ actor {
       case (null) { null };
       case (?project) {
         if (project.owner != caller and not AccessControl.isAdmin(accessControlState, caller)) {
-          Runtime.trap("Unauthorized: Can only view analytics for your own projects");
+          Runtime.trap("Unauthorized: Only can view analytics for your own projects");
         };
         ?{
           views = project.views;
@@ -260,8 +288,9 @@ actor {
 
   // Vendors
   public shared ({ caller }) func createVendor(displayName : Text, bio : Text, categories : [Text]) : async () {
-    let isUser = AccessControl.hasPermission(accessControlState, caller, #user);
-    if (not isUser) { Runtime.trap("Unauthorized: Only authenticated users can create a vendor profile") };
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can create a vendor profile");
+    };
     if (vendors.get(caller) != null) {
       Runtime.trap("Only one vendor per project supported for now");
     };
@@ -388,6 +417,9 @@ actor {
 
   // Products
   public shared ({ caller }) func createProduct(product : Product) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can create products");
+    };
     if (product.vendorId != caller) {
       Runtime.trap("Unauthorized: Can only create products for your own vendor");
     };
@@ -433,8 +465,7 @@ actor {
   };
 
   public query ({ caller }) func listOrders() : async [Order] {
-    let isAdmin = AccessControl.hasPermission(accessControlState, caller, #admin);
-    if (isAdmin) {
+    if (AccessControl.hasPermission(accessControlState, caller, #admin)) {
       return orders.values().toArray();
     };
 
@@ -454,5 +485,191 @@ actor {
         orders.add(orderId, updated);
       };
     };
+  };
+
+  // Admin: list all vendors
+  public query ({ caller }) func listAllVendorsQuery() : async [Vendor] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #admin)) {
+      Runtime.trap("Unauthorized: Only admin can list all vendors");
+    };
+    vendors.values().toArray();
+  };
+
+  // Admin: list all unpublished vendors
+  public query ({ caller }) func listAllUnpublishedVendors() : async [Vendor] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #admin)) {
+      Runtime.trap("Unauthorized: Only admin can list all unpublished vendors");
+    };
+    vendors.values().toArray().filter(
+      func(v) { not v.published }
+    );
+  };
+
+  // List product stock for a vendor: only the vendor owner or an admin may view stock details
+  public query ({ caller }) func listProductStockByVendorId(vendorId : Principal) : async [Product] {
+    switch (vendors.get(vendorId)) {
+      case (null) { Runtime.trap("Vendor not found") };
+      case (?vendor) {
+        if (vendor.vendorOwner != caller and not AccessControl.hasPermission(accessControlState, caller, #admin)) {
+          Runtime.trap("Unauthorized: Only the vendor owner or an admin can view product stock");
+        };
+        let vendorProducts = products.values().toArray().filter(
+          func(product) { product.vendorId == vendorId }
+        );
+        return vendorProducts;
+      };
+    };
+  };
+
+  public shared ({ caller }) func verifyVendor(vendorId : Principal) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #admin)) {
+      Runtime.trap("Unauthorized: Only admins can verify vendors");
+    };
+    switch (vendors.get(vendorId)) {
+      case (null) { Runtime.trap("Vendor not found") };
+      case (?vendor) {
+        let verified = {
+          vendor with
+          published = true;
+        };
+        vendors.add(vendorId, verified);
+      };
+    };
+  };
+
+  public query ({ caller }) func searchCategory(category : Text) : async [Vendor] {
+    let filteredVendors = vendors.values().toArray().filter(
+      func(v) { v.published and v.categories.find(func(cat) { Text.equal(cat, category) }) != null }
+    );
+    let sortedVendors = filteredVendors.sort(
+      func(a, b) {
+        if (a.createdAt < b.createdAt) {
+          #less;
+        } else if (a.createdAt > b.createdAt) {
+          #greater;
+        } else {
+          #equal;
+        };
+      }
+    );
+    return sortedVendors;
+  };
+
+  // Vendor reviews and ratings
+
+  /// Returns all reviews for a given vendorId (principalId as text for frontend compatibility).
+  /// Read-only: accessible by anyone including guests.
+  public query func getVendorReviews(vendorId : Text) : async [Review] {
+    let values = reviews.values().filter(
+      func(review) {
+        Text.equal(review.vendorId, vendorId);
+      }
+    );
+    values.toArray();
+  };
+
+  /// Aggregate review data for a vendor.
+  public query func getReviewsAggregate(vendorId : Text) : async ReviewsAggregate {
+    let vendorReviews = reviews.values().filter(
+      func(review) {
+        Text.equal(review.vendorId, vendorId);
+      }
+    );
+    let reviewsArray = vendorReviews.toArray();
+    let count = reviewsArray.size();
+
+    if (count == 0) {
+      return {
+        reviews = [];
+        count = 0;
+        averageRating = 0.0;
+      };
+    };
+
+    let sum = reviewsArray.foldLeft(
+      0,
+      func(acc, review) {
+        acc + review.rating;
+      },
+    );
+
+    let averageRating = Int.fromNat(sum).toFloat() / Int.fromNat(count).toFloat();
+
+    {
+      reviews = reviewsArray;
+      count;
+      averageRating;
+    };
+  };
+
+  /// Returns the average rating for a given vendorId (principalId as Text).
+  /// Read-only: accessible by anyone including guests.
+  public query func getAverageRating(vendorId : Text) : async Float {
+    let vendorReviews = reviews.values().filter(
+      func(review) {
+        Text.equal(review.vendorId, vendorId);
+      }
+    );
+
+    let reviewsList = vendorReviews.toArray();
+    if (reviewsList.size() == 0) {
+      return 0.0;
+    };
+
+    let sum = reviewsList.foldLeft(
+      0,
+      func(acc, review) {
+        acc + review.rating;
+      },
+    );
+
+    Int.fromNat(sum).toFloat() / Int.fromNat(reviewsList.size()).toFloat();
+  };
+
+  /// Creates a new review for the calling principal.
+  /// Only authenticated users (#user role) may submit reviews.
+  public shared ({ caller }) func submitReview(vendorId : Text, rating : Nat, comment : Text) : async {
+    #ok;
+    #err : Text;
+  } {
+    // Only authenticated users can submit reviews
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only authenticated users can submit reviews");
+    };
+
+    // Validate rating range (1-5)
+    if (rating < 1 or rating > 5) {
+      return #err "Rating must be between 1 and 5";
+    };
+
+    // Check if the vendor exists
+    switch (vendors.get(Principal.fromText(vendorId))) {
+      case (null) { return #err "Vendor not found" };
+      case (_) {};
+    };
+
+    // Prevent multiple reviews from the same user for the same vendor
+    let existingReviews = reviews.values().filter(
+      func(review) {
+        Text.equal(review.vendorId, vendorId) and Principal.equal(review.authorPrincipal, caller);
+      }
+    );
+    let reviewsList = existingReviews.toArray();
+    if (reviewsList.size() > 0) {
+      return #err "You have already submitted a review for this vendor";
+    };
+
+    let reviewId = Time.now().toText().concat(caller.toText());
+    let newReview : Review = {
+      reviewId;
+      vendorId;
+      authorPrincipal = caller;
+      rating;
+      comment;
+      createdAt = Time.now();
+    };
+
+    reviews.add(reviewId, newReview);
+    #ok;
   };
 };

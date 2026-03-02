@@ -1,210 +1,268 @@
-import { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { useGetPublicVendor, useListProducts, useCreateOrder } from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Package, Store, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Store, Loader2, ShoppingCart, Search, ArrowLeft } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import {
+  useListPublicVendors,
+  useListProducts,
+  useVendorRatingSummary,
+  useCreateOrder,
+  CreateOrderInput,
+} from '../hooks/useQueries';
+import ProductCard from '../components/ProductCard';
+import VendorReviewsSection from '../components/vendor/VendorReviewsSection';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { toast } from 'sonner';
-import { Product } from '../types';
+import type { Product } from '../backend';
+import OrderConfirmationDialog, { OrderConfirmationData } from '../components/OrderConfirmationDialog';
+
+function StarRatingDisplay({ rating, count }: { rating: number; count: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            size={16}
+            className={
+              rating >= star
+                ? 'fill-amber-400 text-amber-400'
+                : rating >= star - 0.5
+                  ? 'fill-amber-200 text-amber-400'
+                  : 'fill-muted text-muted-foreground'
+            }
+          />
+        ))}
+      </div>
+      <span className="text-sm font-medium text-foreground">{rating.toFixed(1)}</span>
+      <span className="text-sm text-muted-foreground">
+        ({count} {count === 1 ? 'review' : 'reviews'})
+      </span>
+    </div>
+  );
+}
 
 export default function VendorStorePage() {
-  const { vendorId } = useParams({ strict: false }) as { vendorId: string };
+  const params = useParams({ strict: false }) as { vendorId?: string };
+  const vendorId = params.vendorId ?? '';
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
-  const { data: vendor, isLoading: vendorLoading, error: vendorError } = useGetPublicVendor(vendorId);
+
+  const { data: vendors = [], isLoading: vendorsLoading } = useListPublicVendors();
   const { data: allProducts = [], isLoading: productsLoading } = useListProducts();
+  const { data: ratingSummary, isLoading: ratingLoading } = useVendorRatingSummary(vendorId || null);
   const createOrder = useCreateOrder();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const isAuthenticated = !!identity;
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
+  const [confirmationData, setConfirmationData] = useState<OrderConfirmationData | null>(null);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
 
-  // Filter products by vendor
-  const vendorProducts = allProducts.filter((product) => product.vendorId === vendorId);
-
-  // Apply search filter
-  const filteredProducts = vendorProducts.filter((product) =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const vendor = useMemo(
+    () => vendors.find((v) => v.principalId.toString() === vendorId),
+    [vendors, vendorId]
   );
 
-  const handleQuantityChange = (productId: string, value: string) => {
-    const qty = parseInt(value) || 0;
-    setQuantities((prev) => ({ ...prev, [productId]: qty }));
-  };
+  const vendorProducts = useMemo(
+    () => allProducts.filter((p: Product) => p.vendorId.toString() === vendorId),
+    [allProducts, vendorId]
+  );
 
-  const handlePlaceOrder = async (product: Product) => {
-    if (!isAuthenticated) {
+  const handleOrderClick = async (product: Product, quantity: number) => {
+    if (!identity) {
       toast.error('Please log in to place an order');
       return;
     }
-
-    const quantity = quantities[product.id] || 1;
-    if (quantity <= 0) {
-      toast.error('Please enter a valid quantity');
-      return;
-    }
-
-    if (quantity > Number(product.stock)) {
-      toast.error('Not enough inventory available');
-      return;
-    }
-
+    setLoadingProductId(product.id);
     try {
-      await createOrder.mutateAsync({
-        vendorId: product.vendorId,
+      const totalAmount = product.price * BigInt(quantity);
+      const input: CreateOrderInput = {
         productId: product.id,
-        quantity: BigInt(quantity),
-        totalAmount: product.price * BigInt(quantity),
+        vendorId: product.vendorId,
+        quantity,
+        totalAmount,
+        product,
+      };
+      const order = await createOrder.mutateAsync(input);
+      setConfirmationData({
+        orderId: order.id,
+        productName: product.name,
+        vendorName: vendor?.displayName ?? 'Unknown Vendor',
+        quantity,
+        totalAmount: order.totalAmount,
+        status: order.status,
       });
-      toast.success('Order placed successfully!');
-      setQuantities((prev) => ({ ...prev, [product.id]: 0 }));
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to place order');
+      setConfirmationOpen(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to place order';
+      toast.error(msg);
+    } finally {
+      setLoadingProductId(null);
     }
   };
 
-  if (vendorLoading || productsLoading) {
+  const averageRating = ratingSummary?.averageRating ?? 0;
+  const reviewCount = ratingSummary ? Number(ratingSummary.count) : 0;
+  const hasReviews = reviewCount > 0;
+
+  if (vendorsLoading) {
     return (
-      <div className="container py-16 text-center">
-        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-        <p className="text-muted-foreground">Loading vendor store...</p>
+      <div className="min-h-screen bg-background">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <Skeleton className="h-8 w-32 mb-8" />
+          <div className="flex items-start gap-4 mb-8">
+            <Skeleton className="w-16 h-16 rounded-xl" />
+            <div className="flex-1">
+              <Skeleton className="h-7 w-48 mb-2" />
+              <Skeleton className="h-4 w-64 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (vendorError || !vendor) {
+  if (!vendor) {
     return (
-      <div className="container py-16 text-center">
-        <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-        <h2 className="text-2xl font-bold mb-2">Vendor Not Found</h2>
-        <p className="text-muted-foreground mb-4">This vendor store is not available</p>
-        <Button onClick={() => navigate({ to: '/vendors' })}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Directory
-        </Button>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Store size={48} className="text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Vendor not found</h2>
+          <p className="text-muted-foreground mb-4">
+            This vendor may not exist or is no longer active.
+          </p>
+          <Button variant="outline" onClick={() => navigate({ to: '/vendors' })}>
+            <ArrowLeft size={16} className="mr-2" />
+            Back to Directory
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container py-12">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={() => navigate({ to: '/vendors' })}
-        className="mb-6"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Directory
-      </Button>
+    <div className="min-h-screen bg-background">
+      {/* Back button */}
+      <div className="max-w-5xl mx-auto px-4 pt-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate({ to: '/vendors' })}
+          className="mb-6 -ml-2 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft size={16} className="mr-1.5" />
+          Back to Directory
+        </Button>
+      </div>
 
-      {/* Vendor Profile Header */}
-      <Card className="mb-8">
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Store className="h-8 w-8 text-primary" />
+      {/* Vendor Hero */}
+      <div className="bg-gradient-to-br from-primary/8 via-background to-secondary/8 border-b border-border/50">
+        <div className="max-w-5xl mx-auto px-4 py-10">
+          <div className="flex items-start gap-5">
+            {/* Avatar */}
+            <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center shadow-sm">
+              <Store size={28} className="text-primary" />
             </div>
-            <div className="flex-1">
-              <CardTitle className="text-3xl mb-2">{vendor.displayName}</CardTitle>
-              <CardDescription className="text-base">{vendor.bio || 'No description available'}</CardDescription>
-              {vendor.categories.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {vendor.categories.map((category, idx) => (
-                    <Badge key={idx} variant="secondary">
-                      {category}
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground mb-1">
+                    {vendor.displayName}
+                  </h1>
+
+                  {/* Rating display */}
+                  <div className="mb-2">
+                    {ratingLoading ? (
+                      <Skeleton className="h-5 w-40" />
+                    ) : hasReviews ? (
+                      <StarRatingDisplay rating={averageRating} count={reviewCount} />
+                    ) : (
+                      <span className="text-sm text-muted-foreground italic">No reviews yet</span>
+                    )}
+                  </div>
+
+                  {vendor.bio && (
+                    <p className="text-muted-foreground text-sm max-w-xl">{vendor.bio}</p>
+                  )}
+                </div>
+
+                <Badge variant="secondary" className="flex-shrink-0">
+                  {vendorProducts.length} product{vendorProducts.length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+
+              {/* Categories */}
+              {vendor.categories && vendor.categories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {vendor.categories.map((cat) => (
+                    <Badge key={cat} variant="outline" className="text-xs">
+                      {cat}
                     </Badge>
                   ))}
                 </div>
               )}
             </div>
           </div>
-        </CardHeader>
-      </Card>
-
-      {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search products in this store..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
         </div>
       </div>
 
-      {/* Products Grid */}
-      {filteredProducts.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <CardTitle className="mb-2">No Products Found</CardTitle>
-            <p className="text-muted-foreground">
-              {searchTerm
-                ? 'Try adjusting your search'
-                : 'This vendor has no products available at the moment'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
-            <Card key={product.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between mb-2">
-                  <CardTitle className="text-lg">{product.name}</CardTitle>
-                  <Badge variant="outline">
-                    {Number(product.stock)} in stock
-                  </Badge>
-                </div>
-                <CardDescription className="line-clamp-2">{product.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-                  <span className="text-sm font-medium">Price</span>
-                  <span className="text-lg font-bold text-primary">
-                    {(Number(product.price) / 100000000).toFixed(2)} ICP
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    max={Number(product.stock)}
-                    placeholder="Qty"
-                    value={quantities[product.id] || ''}
-                    onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                    className="w-20"
-                  />
-                  <Button
-                    className="flex-1 gap-2"
-                    onClick={() => handlePlaceOrder(product)}
-                    disabled={createOrder.isPending || !isAuthenticated || Number(product.stock) === 0}
-                  >
-                    {createOrder.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Ordering...
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="h-4 w-4" />
-                        Order
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* Products Section */}
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Package size={20} className="text-primary" />
+          <h2 className="text-xl font-semibold text-foreground">Products</h2>
         </div>
-      )}
+
+        {productsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border/60 p-5">
+                <Skeleton className="h-5 w-32 mb-2" />
+                <Skeleton className="h-4 w-full mb-1.5" />
+                <Skeleton className="h-4 w-3/4 mb-4" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : vendorProducts.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-border/60 rounded-xl">
+            <Package size={32} className="text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No products listed yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vendorProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                vendorName={vendor.displayName}
+                onOrderClick={handleOrderClick}
+                isLoading={loadingProductId === product.id}
+                isAuthenticated={!!identity}
+              />
+            ))}
+          </div>
+        )}
+
+        <Separator className="my-10" />
+
+        {/* Reviews Section */}
+        <VendorReviewsSection vendorId={vendorId} readOnly={false} />
+      </div>
+
+      <OrderConfirmationDialog
+        open={confirmationOpen}
+        onClose={() => {
+          setConfirmationOpen(false);
+          setConfirmationData(null);
+        }}
+        data={confirmationData}
+      />
     </div>
   );
 }

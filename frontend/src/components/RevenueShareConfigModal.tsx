@@ -1,13 +1,29 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2 } from 'lucide-react';
 import { useCreateRevenueShareConfig } from '../hooks/useQueries';
 import { RevenueShareParticipant } from '../types';
 import { Principal } from '@dfinity/principal';
+import { toast } from 'sonner';
+
+interface ParticipantForm {
+  id: string;
+  idType: 'principal' | 'stripe';
+  principal: string;
+  stripeId: string;
+  percentage: string;
+}
 
 interface RevenueShareConfigModalProps {
   open: boolean;
@@ -15,177 +31,194 @@ interface RevenueShareConfigModalProps {
 }
 
 export default function RevenueShareConfigModal({ open, onClose }: RevenueShareConfigModalProps) {
-  const [configId, setConfigId] = useState('');
-  const [participants, setParticipants] = useState<Array<{ principal: string; stripeId: string; percentage: string }>>([
-    { principal: '', stripeId: '', percentage: '' },
+  const [participants, setParticipants] = useState<ParticipantForm[]>([
+    { id: crypto.randomUUID(), idType: 'principal', principal: '', stripeId: '', percentage: '' },
   ]);
 
   const createConfig = useCreateRevenueShareConfig();
 
   const addParticipant = () => {
-    setParticipants([...participants, { principal: '', stripeId: '', percentage: '' }]);
+    setParticipants((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), idType: 'principal', principal: '', stripeId: '', percentage: '' },
+    ]);
   };
 
-  const removeParticipant = (index: number) => {
-    setParticipants(participants.filter((_, i) => i !== index));
+  const removeParticipant = (id: string) => {
+    setParticipants((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const updateParticipant = (index: number, field: string, value: string) => {
-    const updated = [...participants];
-    updated[index] = { ...updated[index], [field]: value };
-    setParticipants(updated);
+  const updateParticipant = (id: string, field: keyof ParticipantForm, value: string) => {
+    setParticipants((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+    );
   };
+
+  const totalPercentage = participants.reduce((sum, p) => {
+    const val = parseFloat(p.percentage);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate total percentage
-    const totalPercentage = participants.reduce((sum, p) => sum + (parseFloat(p.percentage) || 0), 0);
     if (Math.abs(totalPercentage - 100) > 0.01) {
       toast.error('Total percentage must equal 100%');
       return;
     }
 
-    // Validate participants
-    const validParticipants: RevenueShareParticipant[] = participants.map(p => {
-      const participant: RevenueShareParticipant = {
-        percentage: BigInt(Math.round(parseFloat(p.percentage) * 100)),
-      };
-
-      if (p.principal) {
-        try {
-          participant.principal = Principal.fromText(p.principal);
-        } catch (error) {
-          throw new Error(`Invalid principal: ${p.principal}`);
-        }
+    const parsed: RevenueShareParticipant[] = [];
+    for (const p of participants) {
+      const pct = parseFloat(p.percentage);
+      if (isNaN(pct) || pct <= 0) {
+        toast.error('All participants must have a valid percentage > 0');
+        return;
       }
 
-      if (p.stripeId) {
-        participant.stripeId = p.stripeId;
+      const participant: RevenueShareParticipant = {
+        id: p.id,
+        percentage: pct,
+      };
+
+      if (p.idType === 'principal') {
+        if (!p.principal.trim()) {
+          toast.error('Principal ID is required for each participant');
+          return;
+        }
+        try {
+          participant.principal = Principal.fromText(p.principal.trim());
+        } catch {
+          toast.error(`Invalid Principal ID: ${p.principal}`);
+          return;
+        }
+      } else {
+        if (!p.stripeId.trim()) {
+          toast.error('Stripe ID is required for each participant');
+          return;
+        }
+        participant.stripeId = p.stripeId.trim();
       }
 
       if (!participant.principal && !participant.stripeId) {
-        throw new Error('Each participant must have either a principal or Stripe ID');
+        toast.error('Each participant must have either a Principal ID or Stripe ID');
+        return;
       }
 
-      return participant;
-    });
+      parsed.push(participant);
+    }
 
     try {
-      await createConfig.mutateAsync({
-        id: configId,
-        participants: validParticipants,
-      });
-      toast.success('Revenue share configuration created successfully');
+      await createConfig.mutateAsync({ participants: parsed });
+      toast.success('Revenue share configuration saved');
       onClose();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create configuration');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save configuration';
+      toast.error(msg);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Revenue Share Configuration</DialogTitle>
+          <DialogTitle>Revenue Share Configuration</DialogTitle>
           <DialogDescription>
-            Define how revenue will be split among participants. Total must equal 100%.
+            Define how revenue is distributed among participants. Total must equal 100%.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="configId">Configuration ID</Label>
-            <Input
-              id="configId"
-              value={configId}
-              onChange={(e) => setConfigId(e.target.value)}
-              placeholder="e.g., config-001"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          {participants.map((p, idx) => (
+            <div key={p.id} className="border border-border/60 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Participant {idx + 1}</span>
+                {participants.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => removeParticipant(p.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Participants</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addParticipant}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Participant
-              </Button>
-            </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={p.idType === 'principal' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => updateParticipant(p.id, 'idType', 'principal')}
+                >
+                  ICP Principal
+                </Button>
+                <Button
+                  type="button"
+                  variant={p.idType === 'stripe' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => updateParticipant(p.id, 'idType', 'stripe')}
+                >
+                  Stripe ID
+                </Button>
+              </div>
 
-            {participants.map((participant, index) => (
-              <div key={index} className="p-4 border rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Participant {index + 1}</span>
-                  {participants.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeParticipant(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>ICP Principal (optional)</Label>
-                    <Input
-                      value={participant.principal}
-                      onChange={(e) => updateParticipant(index, 'principal', e.target.value)}
-                      placeholder="aaaaa-aa..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Stripe ID (optional)</Label>
-                    <Input
-                      value={participant.stripeId}
-                      onChange={(e) => updateParticipant(index, 'stripeId', e.target.value)}
-                      placeholder="acct_..."
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Percentage</Label>
+              {p.idType === 'principal' ? (
+                <div className="space-y-1">
+                  <Label className="text-xs">Principal ID</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    value={participant.percentage}
-                    onChange={(e) => updateParticipant(index, 'percentage', e.target.value)}
-                    placeholder="0.00"
-                    required
+                    placeholder="aaaaa-aa..."
+                    value={p.principal}
+                    onChange={(e) => updateParticipant(p.id, 'principal', e.target.value)}
+                    className="font-mono text-xs"
                   />
                 </div>
-              </div>
-            ))}
+              ) : (
+                <div className="space-y-1">
+                  <Label className="text-xs">Stripe Account ID</Label>
+                  <Input
+                    placeholder="acct_..."
+                    value={p.stripeId}
+                    onChange={(e) => updateParticipant(p.id, 'stripeId', e.target.value)}
+                    className="font-mono text-xs"
+                  />
+                </div>
+              )}
 
-            <div className="text-sm text-muted-foreground">
-              Total: {participants.reduce((sum, p) => sum + (parseFloat(p.percentage) || 0), 0).toFixed(2)}%
+              <div className="space-y-1">
+                <Label className="text-xs">Percentage (%)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 50"
+                  min="0.01"
+                  max="100"
+                  step="0.01"
+                  value={p.percentage}
+                  onChange={(e) => updateParticipant(p.id, 'percentage', e.target.value)}
+                />
+              </div>
             </div>
+          ))}
+
+          <div className="flex items-center justify-between">
+            <Button type="button" variant="outline" size="sm" onClick={addParticipant}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Participant
+            </Button>
+            <Badge variant={Math.abs(totalPercentage - 100) < 0.01 ? 'default' : 'destructive'}>
+              Total: {totalPercentage.toFixed(2)}%
+            </Badge>
           </div>
 
-          <div className="flex gap-3">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createConfig.isPending} className="flex-1">
-              {createConfig.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Configuration'
-              )}
+            <Button type="submit" disabled={createConfig.isPending}>
+              {createConfig.isPending ? 'Saving…' : 'Save Configuration'}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

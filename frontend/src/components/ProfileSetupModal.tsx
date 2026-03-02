@@ -1,112 +1,133 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
 import { useSaveCallerUserProfile } from '../hooks/useQueries';
-import { validateProfile, ValidationError } from '../utils/profileValidation';
+import { UserProfile } from '../backend';
 import { getReadableErrorMessage } from '../utils/errors';
+import { validateName, validateEmail, NAME_MIN_LENGTH, NAME_MAX_LENGTH } from '../utils/profileValidation';
 
-export default function ProfileSetupModal() {
+interface ProfileSetupModalProps {
+  open: boolean;
+  onComplete: () => void;
+}
+
+export default function ProfileSetupModal({ open, onComplete }: ProfileSetupModalProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+
   const saveProfile = useSaveCallerUserProfile();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Clear previous field errors
-    setFieldErrors({});
+    setSubmitError('');
+    setNameError('');
+    setEmailError('');
 
-    // Validate profile
-    const errors = validateProfile({ name, email: email || undefined });
-    
-    if (errors.length > 0) {
-      // Convert errors to field error map
-      const errorMap: Record<string, string> = {};
-      errors.forEach((error: ValidationError) => {
-        errorMap[error.field] = error.message;
-      });
-      setFieldErrors(errorMap);
-      
-      // Show first error in toast
-      toast.error(errors[0].message);
+    // validateName returns ValidationError | null
+    const nameErr = validateName(name);
+    if (nameErr !== null) {
+      setNameError(nameErr.message);
       return;
     }
 
-    try {
-      const profile = {
-        name: name.trim(),
-        email: email.trim() || undefined,
-      };
+    if (email.trim()) {
+      const emailErr = validateEmail(email);
+      if (emailErr !== null) {
+        setEmailError(emailErr.message);
+        return;
+      }
+    }
 
+    const profile: UserProfile = {
+      name: name.trim(),
+      email: email.trim() || undefined,
+      pendingRewardCampaigns: [],
+      createdAt: BigInt(0),
+    };
+
+    try {
       await saveProfile.mutateAsync(profile);
-      toast.success('Profile created successfully!');
-    } catch (error: unknown) {
-      const errorMessage = getReadableErrorMessage(error);
-      toast.error(errorMessage);
-      console.error('Profile creation error:', error);
+      onComplete();
+    } catch (err) {
+      setSubmitError(getReadableErrorMessage(err));
     }
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => {}}>
+    <Dialog open={open}>
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>Welcome! Set Up Your Profile</DialogTitle>
+          <DialogTitle>Welcome! Set up your profile</DialogTitle>
           <DialogDescription>
-            Please provide your name to get started. This helps us personalize your experience.
+            Tell us a bit about yourself to get started. You can update this later.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <div className="space-y-1">
+            <Label htmlFor="profile-name">
+              Name <span className="text-destructive">*</span>
+            </Label>
             <Input
-              id="name"
-              placeholder="Enter your name"
+              id="profile-name"
+              placeholder="Your display name"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                // Clear field error on change
-                if (fieldErrors.name) {
-                  setFieldErrors(prev => ({ ...prev, name: '' }));
-                }
+                setNameError('');
               }}
-              autoFocus
+              minLength={NAME_MIN_LENGTH}
+              maxLength={NAME_MAX_LENGTH}
               required
-              className={fieldErrors.name ? 'border-destructive' : ''}
             />
-            {fieldErrors.name && (
-              <p className="text-sm text-destructive">{fieldErrors.name}</p>
-            )}
+            {nameError && <p className="text-xs text-destructive">{nameError}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email (Optional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="profile-email">Email (optional)</Label>
             <Input
-              id="email"
+              id="profile-email"
               type="email"
-              placeholder="your.email@example.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                // Clear field error on change
-                if (fieldErrors.email) {
-                  setFieldErrors(prev => ({ ...prev, email: '' }));
-                }
+                setEmailError('');
               }}
-              className={fieldErrors.email ? 'border-destructive' : ''}
             />
-            {fieldErrors.email && (
-              <p className="text-sm text-destructive">{fieldErrors.email}</p>
-            )}
+            {emailError && <p className="text-xs text-destructive">{emailError}</p>}
           </div>
 
-          <Button type="submit" className="w-full" disabled={saveProfile.isPending}>
-            {saveProfile.isPending ? 'Creating Profile...' : 'Create Profile'}
-          </Button>
+          {submitError && (
+            <p className="text-sm text-destructive bg-destructive/10 rounded px-3 py-2">
+              {submitError}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button type="submit" disabled={saveProfile.isPending} className="w-full">
+              {saveProfile.isPending ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Saving…
+                </span>
+              ) : (
+                'Save Profile'
+              )}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

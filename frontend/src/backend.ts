@@ -89,6 +89,19 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface ReviewsAggregate {
+    reviews: Array<Review>;
+    count: bigint;
+    averageRating: number;
+}
+export interface Review {
+    createdAt: bigint;
+    comment: string;
+    vendorId: string;
+    rating: bigint;
+    reviewId: string;
+    authorPrincipal: Principal;
+}
 export interface ProjectEntry {
     id: string;
     clicks: bigint;
@@ -98,6 +111,11 @@ export interface ProjectEntry {
     createdAt: bigint;
     description: string;
 }
+export interface TransformationOutput {
+    status: bigint;
+    body: Uint8Array;
+    headers: Array<http_header>;
+}
 export interface Product {
     id: string;
     name: string;
@@ -106,11 +124,6 @@ export interface Product {
     stock: bigint;
     vendorId: Principal;
     price: bigint;
-}
-export interface TransformationOutput {
-    status: bigint;
-    body: Uint8Array;
-    headers: Array<http_header>;
 }
 export interface _CaffeineStorageRefillInformation {
     proposed_top_up_amount?: bigint;
@@ -233,6 +246,11 @@ export interface backendInterface {
     createUserProfile(userProfile: UserProfile): Promise<void>;
     createVendor(displayName: string, bio: string, categories: Array<string>): Promise<void>;
     finishOnboarding(): Promise<void>;
+    /**
+     * / Returns the average rating for a given vendorId (principalId as Text).
+     * / Read-only: accessible by anyone including guests.
+     */
+    getAverageRating(vendorId: string): Promise<number>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getOrder(orderId: string): Promise<Order | null>;
@@ -242,6 +260,10 @@ export interface backendInterface {
         views: bigint;
     } | null>;
     getProjectsByOwner(owner: Principal): Promise<Array<ProjectEntry>>;
+    /**
+     * / Aggregate review data for a vendor.
+     */
+    getReviewsAggregate(vendorId: string): Promise<ReviewsAggregate>;
     getRewardCampaign(campaignId: string): Promise<RewardCampaign | null>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -249,21 +271,42 @@ export interface backendInterface {
     getVendor(vendorId: Principal): Promise<Vendor | null>;
     getVendorBalance(vendorId: Principal): Promise<bigint>;
     getVendorOrders(): Promise<Array<Order>>;
+    /**
+     * / Returns all reviews for a given vendorId (principalId as text for frontend compatibility).
+     * / Read-only: accessible by anyone including guests.
+     */
+    getVendorReviews(vendorId: string): Promise<Array<Review>>;
     isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
+    listAllUnpublishedVendors(): Promise<Array<Vendor>>;
+    listAllVendorsQuery(): Promise<Array<Vendor>>;
     listOrders(): Promise<Array<Order>>;
+    listProductStockByVendorId(vendorId: Principal): Promise<Array<Product>>;
     listProducts(): Promise<Array<Product>>;
     listPublicVendors(): Promise<Array<Vendor>>;
     listPublicVendorsByCategory(category: string): Promise<Array<Vendor>>;
     listRewardCampaigns(): Promise<Array<RewardCampaign>>;
     publishVendor(): Promise<void>;
     saveCallerUserProfile(userProfile: UserProfile): Promise<void>;
+    searchCategory(category: string): Promise<Array<Vendor>>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
+    /**
+     * / Creates a new review for the calling principal.
+     * / Only authenticated users (#user role) may submit reviews.
+     */
+    submitReview(vendorId: string, rating: bigint, comment: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
     unpublishVendor(): Promise<void>;
     updateOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
     updateProduct(productId: string, product: Product): Promise<void>;
     updateVendorProfile(displayName: string, bio: string, categories: Array<string>): Promise<void>;
+    verifyVendor(vendorId: Principal): Promise<void>;
     withdrawVendorBalance(amount: bigint): Promise<void>;
 }
 import type { Order as _Order, OrderStatus as _OrderStatus, ProjectEntry as _ProjectEntry, RewardCampaign as _RewardCampaign, RewardCampaignType as _RewardCampaignType, StripeSessionStatus as _StripeSessionStatus, UserProfile as _UserProfile, UserRole as _UserRole, Vendor as _Vendor, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
@@ -465,6 +508,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getAverageRating(arg0: string): Promise<number> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAverageRating(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAverageRating(arg0);
+            return result;
+        }
+    }
     async getCallerUserProfile(): Promise<UserProfile | null> {
         if (this.processError) {
             try {
@@ -549,6 +606,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getProjectsByOwner(arg0);
+            return result;
+        }
+    }
+    async getReviewsAggregate(arg0: string): Promise<ReviewsAggregate> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getReviewsAggregate(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getReviewsAggregate(arg0);
             return result;
         }
     }
@@ -650,6 +721,20 @@ export class Backend implements backendInterface {
             return from_candid_vec_n34(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getVendorReviews(arg0: string): Promise<Array<Review>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getVendorReviews(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getVendorReviews(arg0);
+            return result;
+        }
+    }
     async isCallerAdmin(): Promise<boolean> {
         if (this.processError) {
             try {
@@ -678,6 +763,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async listAllUnpublishedVendors(): Promise<Array<Vendor>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listAllUnpublishedVendors();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listAllUnpublishedVendors();
+            return result;
+        }
+    }
+    async listAllVendorsQuery(): Promise<Array<Vendor>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listAllVendorsQuery();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listAllVendorsQuery();
+            return result;
+        }
+    }
     async listOrders(): Promise<Array<Order>> {
         if (this.processError) {
             try {
@@ -690,6 +803,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.listOrders();
             return from_candid_vec_n34(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async listProductStockByVendorId(arg0: Principal): Promise<Array<Product>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listProductStockByVendorId(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listProductStockByVendorId(arg0);
+            return result;
         }
     }
     async listProducts(): Promise<Array<Product>> {
@@ -776,6 +903,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async searchCategory(arg0: string): Promise<Array<Vendor>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.searchCategory(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.searchCategory(arg0);
+            return result;
+        }
+    }
     async setStripeConfiguration(arg0: StripeConfiguration): Promise<void> {
         if (this.processError) {
             try {
@@ -788,6 +929,26 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.setStripeConfiguration(arg0);
             return result;
+        }
+    }
+    async submitReview(arg0: string, arg1: bigint, arg2: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitReview(arg0, arg1, arg2);
+                return from_candid_variant_n36(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitReview(arg0, arg1, arg2);
+            return from_candid_variant_n36(this._uploadFile, this._downloadFile, result);
         }
     }
     async transform(arg0: TransformationInput): Promise<TransformationOutput> {
@@ -821,14 +982,14 @@ export class Backend implements backendInterface {
     async updateOrderStatus(arg0: string, arg1: OrderStatus): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateOrderStatus(arg0, to_candid_OrderStatus_n36(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.updateOrderStatus(arg0, to_candid_OrderStatus_n37(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateOrderStatus(arg0, to_candid_OrderStatus_n36(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.updateOrderStatus(arg0, to_candid_OrderStatus_n37(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
@@ -857,6 +1018,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updateVendorProfile(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async verifyVendor(arg0: Principal): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.verifyVendor(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.verifyVendor(arg0);
             return result;
         }
     }
@@ -1104,14 +1279,33 @@ function from_candid_variant_n31(_uploadFile: (file: ExternalBlob) => Promise<Ui
         failed: value.failed
     } : value;
 }
+function from_candid_variant_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    ok: null;
+} | {
+    err: string;
+}): {
+    __kind__: "ok";
+    ok: null;
+} | {
+    __kind__: "err";
+    err: string;
+} {
+    return "ok" in value ? {
+        __kind__: "ok",
+        ok: value.ok
+    } : "err" in value ? {
+        __kind__: "err",
+        err: value.err
+    } : value;
+}
 function from_candid_vec_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Order>): Array<Order> {
     return value.map((x)=>from_candid_Order_n19(_uploadFile, _downloadFile, x));
 }
 function from_candid_vec_n35(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_RewardCampaign>): Array<RewardCampaign> {
     return value.map((x)=>from_candid_RewardCampaign_n26(_uploadFile, _downloadFile, x));
 }
-function to_candid_OrderStatus_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: OrderStatus): _OrderStatus {
-    return to_candid_variant_n37(_uploadFile, _downloadFile, value);
+function to_candid_OrderStatus_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: OrderStatus): _OrderStatus {
+    return to_candid_variant_n38(_uploadFile, _downloadFile, value);
 }
 function to_candid_UserProfile_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserProfile): _UserProfile {
     return to_candid_record_n11(_uploadFile, _downloadFile, value);
@@ -1152,7 +1346,7 @@ function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
         proposed_top_up_amount: value.proposed_top_up_amount ? candid_some(value.proposed_top_up_amount) : candid_none()
     };
 }
-function to_candid_variant_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: OrderStatus): {
+function to_candid_variant_n38(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: OrderStatus): {
     shipped: null;
 } | {
     cancelled: null;

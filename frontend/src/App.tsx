@@ -1,7 +1,13 @@
 import { useInternetIdentity } from './hooks/useInternetIdentity';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/sonner';
-import { createRouter, RouterProvider, createRoute, createRootRoute, Outlet } from '@tanstack/react-router';
+import {
+  createRouter,
+  RouterProvider,
+  createRoute,
+  createRootRoute,
+  Outlet,
+} from '@tanstack/react-router';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import StripeSetupModal from './components/StripeSetupModal';
@@ -26,6 +32,7 @@ function Layout() {
         <Outlet />
       </main>
       <Footer />
+      {/* StripeSetupModal is self-contained — manages its own open state */}
       <StripeSetupModal />
       <Toaster />
     </div>
@@ -33,9 +40,7 @@ function Layout() {
 }
 
 // Define routes
-const rootRoute = createRootRoute({
-  component: Layout,
-});
+const rootRoute = createRootRoute({ component: Layout });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,

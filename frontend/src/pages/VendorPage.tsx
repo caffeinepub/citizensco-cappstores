@@ -1,7 +1,7 @@
-import { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import {
-  useGetMyVendor,
+  useGetVendor,
   useCreateVendor,
   useGetVendorBalance,
   useWithdrawVendorBalance,
@@ -9,6 +9,8 @@ import {
   useUpdateOrderStatus,
   useUpdateVendorProfile,
   useListPublicVendors,
+  useGetVendorReviews,
+  useGetAverageRating,
 } from '../hooks/useQueries';
 import { useMyVendorProducts } from '../hooks/useMyVendorProducts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,29 +19,51 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Store, Loader2, DollarSign, Package, ShoppingBag, Edit2 } from 'lucide-react';
+import { Store, Loader2, DollarSign, Package, ShoppingBag, Edit2, Star } from 'lucide-react';
 import { toast } from 'sonner';
-import { OrderStatus } from '../types';
+import { OrderStatus } from '../backend';
 import VendorOnboarding from '../components/vendor/VendorOnboarding';
 import VendorProductCreateForm from '../components/vendor/VendorProductCreateForm';
 import MyProductsSection from '../components/vendor/MyProductsSection';
 import VendorCategoryInput from '../components/vendor/VendorCategoryInput';
+import VendorReviewsSection from '../components/vendor/VendorReviewsSection';
 import { extractUniqueCategories } from '../utils/vendorDiscovery';
+import { Principal } from '@dfinity/principal';
 
 export default function VendorPage() {
   const { identity } = useInternetIdentity();
-  const { data: vendor, isLoading: vendorLoading, isFetched: vendorFetched } = useGetMyVendor();
-  const { data: balance = BigInt(0) } = useGetVendorBalance();
+  const callerPrincipal: Principal | null = identity?.getPrincipal() ?? null;
+
+  const {
+    data: vendor,
+    isLoading: vendorLoading,
+    isFetched: vendorFetched,
+  } = useGetVendor(callerPrincipal);
+
+  const { data: balance = BigInt(0) } = useGetVendorBalance(callerPrincipal);
   const { data: vendorOrders = [], isLoading: ordersLoading } = useGetVendorOrders();
-  const { products, isLoading: productsLoading, hasProducts } = useMyVendorProducts();
+
+  const vendorIdStr = vendor?.principalId?.toString() ?? '';
+  const { products, isLoading: productsLoading, hasProducts } = useMyVendorProducts(vendorIdStr || null);
+
+  const { data: reviews = [] } = useGetVendorReviews(vendorIdStr);
+  const { data: averageRating = 0 } = useGetAverageRating(vendorIdStr);
+
   const createVendor = useCreateVendor();
   const withdrawBalance = useWithdrawVendorBalance();
   const updateOrderStatus = useUpdateOrderStatus();
   const updateVendorProfile = useUpdateVendorProfile();
 
-  // Fetch all public vendors for category suggestions
   const allVendorsQuery = useListPublicVendors();
   const categorySuggestions = useMemo(() => {
     if (allVendorsQuery.data) {
@@ -60,13 +84,13 @@ export default function VendorPage() {
   const [editCategories, setEditCategories] = useState<string[]>([]);
 
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [showProductForm, setShowProductForm] = useState(false);
 
   const productFormRef = useRef<HTMLDivElement>(null);
 
   const isAuthenticated = !!identity;
-
-  // Determine onboarding state
   const isOnboardingIncomplete = vendor && !hasProducts;
+  const hasReviews = reviews.length > 0;
 
   const handleCreateVendor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,36 +98,33 @@ export default function VendorPage() {
       toast.error('Please enter a vendor name');
       return;
     }
-
     try {
-      await createVendor.mutateAsync({ 
-        displayName: displayName.trim(), 
+      await createVendor.mutateAsync({
+        displayName: displayName.trim(),
         bio: bio.trim(),
-        categories: categories
+        categories,
       });
       toast.success('Vendor created successfully!');
       setDisplayName('');
       setBio('');
       setCategories([]);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create vendor');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to create vendor';
+      toast.error(msg);
     }
   };
 
   const handleStartEditProfile = () => {
     if (vendor) {
-      setEditDisplayName(vendor.displayName || '');
-      setEditBio(vendor.bio || '');
-      setEditCategories(vendor.categories || []);
+      setEditDisplayName(vendor.displayName ?? '');
+      setEditBio(vendor.bio ?? '');
+      setEditCategories(vendor.categories ?? []);
       setIsEditingProfile(true);
     }
   };
 
   const handleCancelEditProfile = () => {
     setIsEditingProfile(false);
-    setEditDisplayName('');
-    setEditBio('');
-    setEditCategories([]);
   };
 
   const handleSaveProfile = async () => {
@@ -111,7 +132,6 @@ export default function VendorPage() {
       toast.error('Please enter a vendor name');
       return;
     }
-
     try {
       await updateVendorProfile.mutateAsync({
         displayName: editDisplayName.trim(),
@@ -120,29 +140,30 @@ export default function VendorPage() {
       });
       toast.success('Profile updated successfully!');
       setIsEditingProfile(false);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update profile');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to update profile';
+      toast.error(msg);
     }
   };
 
   const handleWithdraw = async () => {
-    const amount = BigInt(withdrawAmount);
-    if (amount <= BigInt(0)) {
+    const parsed = parseFloat(withdrawAmount);
+    if (isNaN(parsed) || parsed <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
-
+    const amount = BigInt(Math.round(parsed * 1e8));
     if (amount > balance) {
       toast.error('Insufficient balance');
       return;
     }
-
     try {
       await withdrawBalance.mutateAsync(amount);
       toast.success('Withdrawal successful!');
       setWithdrawAmount('');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to withdraw');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to withdraw';
+      toast.error(msg);
     }
   };
 
@@ -150,16 +171,22 @@ export default function VendorPage() {
     try {
       await updateOrderStatus.mutateAsync({ orderId, status });
       toast.success('Order status updated!');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update status');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to update status';
+      toast.error(msg);
     }
   };
 
   const handleScrollToProductForm = () => {
-    productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setShowProductForm(true);
+    setTimeout(() => {
+      productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = (
+    status: string
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (status) {
       case 'delivered':
       case 'paid':
@@ -185,9 +212,7 @@ export default function VendorPage() {
           </CardHeader>
           <CardContent>
             <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              Create your vendor account and start selling.
-            </p>
+            <p className="text-muted-foreground">Create your vendor account and start selling.</p>
           </CardContent>
         </Card>
       </div>
@@ -277,7 +302,30 @@ export default function VendorPage() {
           <Store className="h-10 w-10 text-primary" />
           Vendor Dashboard
         </h1>
-        <p className="text-muted-foreground">Manage your vendor account, products, and orders</p>
+        <p className="text-muted-foreground">
+          Manage your vendor account, products, and orders
+        </p>
+        {/* Average Rating in header */}
+        {hasReviews && (
+          <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  className={`h-4 w-4 ${
+                    i < Math.round(averageRating)
+                      ? 'fill-amber-400 text-amber-400'
+                      : 'fill-muted text-muted-foreground/30'
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-sm font-medium">{averageRating.toFixed(1)}</span>
+            <span className="text-sm text-muted-foreground">
+              ({reviews.length} review{reviews.length !== 1 ? 's' : ''})
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Onboarding Alert */}
@@ -300,7 +348,7 @@ export default function VendorPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-primary">
-              {(Number(balance) / 100000000).toFixed(2)} ICP
+              {(Number(balance) / 1e8).toFixed(4)} ICP
             </p>
           </CardContent>
         </Card>
@@ -330,241 +378,299 @@ export default function VendorPage() {
         </Card>
       </div>
 
-      {/* Vendor Info & Balance Management */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Vendor Profile</CardTitle>
-                <CardDescription>Your vendor profile details</CardDescription>
-              </div>
-              {!isEditingProfile && (
-                <Button variant="outline" size="sm" onClick={handleStartEditProfile}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isEditingProfile ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="editDisplayName">Display Name</Label>
-                  <Input
-                    id="editDisplayName"
-                    value={editDisplayName}
-                    onChange={(e) => setEditDisplayName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="editBio">Bio</Label>
-                  <Textarea
-                    id="editBio"
-                    value={editBio}
-                    onChange={(e) => setEditBio(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <VendorCategoryInput
-                  label="Categories"
-                  placeholder="Add a category"
-                  categories={editCategories}
-                  onCategoriesChange={setEditCategories}
-                  suggestions={categorySuggestions}
-                  disabled={updateVendorProfile.isPending}
-                />
-                <div className="flex gap-2">
-                  <Button onClick={handleSaveProfile} disabled={updateVendorProfile.isPending}>
-                    {updateVendorProfile.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={handleCancelEditProfile}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Display Name</p>
-                  <p className="text-lg font-semibold">{vendor?.displayName}</p>
-                </div>
-                {vendor?.bio && (
+      {/* Tabs: Profile / Products / Orders / My Reviews */}
+      <Tabs defaultValue="profile">
+        <TabsList className="mb-6">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="reviews">
+            My Reviews
+            {hasReviews && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {reviews.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Bio</p>
-                    <p className="text-sm">{vendor.bio}</p>
+                    <CardTitle>Vendor Profile</CardTitle>
+                    <CardDescription>Your vendor profile details</CardDescription>
                   </div>
-                )}
-                {vendor?.categories && vendor.categories.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Categories</p>
-                    <div className="flex flex-wrap gap-2">
-                      {vendor.categories.map((category, idx) => (
-                        <Badge key={idx} variant="secondary">
-                          {category}
-                        </Badge>
-                      ))}
+                  {!isEditingProfile && (
+                    <Button variant="outline" size="sm" onClick={handleStartEditProfile}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isEditingProfile ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="editDisplayName">Display Name</Label>
+                      <Input
+                        id="editDisplayName"
+                        value={editDisplayName}
+                        onChange={(e) => setEditDisplayName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editBio">Bio</Label>
+                      <Textarea
+                        id="editBio"
+                        value={editBio}
+                        onChange={(e) => setEditBio(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    <VendorCategoryInput
+                      label="Categories"
+                      placeholder="Add a category"
+                      categories={editCategories}
+                      onCategoriesChange={setEditCategories}
+                      suggestions={categorySuggestions}
+                      disabled={updateVendorProfile.isPending}
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={handleSaveProfile} disabled={updateVendorProfile.isPending}>
+                        {updateVendorProfile.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </Button>
+                      <Button variant="outline" onClick={handleCancelEditProfile}>
+                        Cancel
+                      </Button>
                     </div>
                   </div>
-                )}
-                <Separator />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Vendor ID</p>
-                  <p className="font-mono text-xs break-all text-muted-foreground">{vendor?.id}</p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Balance Management</CardTitle>
-            <CardDescription>Withdraw your earnings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Available Balance</p>
-              <p className="text-2xl font-bold text-primary">
-                {(Number(balance) / 100000000).toFixed(8)} ICP
-              </p>
-            </div>
-            <Separator />
-            <div className="space-y-2">
-              <Label htmlFor="withdrawAmount">Withdraw Amount (e8s)</Label>
-              <Input
-                id="withdrawAmount"
-                type="number"
-                placeholder="Enter amount in e8s"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                1 ICP = 100,000,000 e8s
-              </p>
-            </div>
-            <Button
-              onClick={handleWithdraw}
-              disabled={withdrawBalance.isPending || !withdrawAmount}
-              className="w-full"
-            >
-              {withdrawBalance.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Processing...
-                </>
-              ) : (
-                'Withdraw'
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Products Section */}
-      <MyProductsSection
-        products={products}
-        isLoading={productsLoading}
-        onScrollToProductForm={handleScrollToProductForm}
-      />
-
-      {/* Create Product Form */}
-      <div ref={productFormRef}>
-        <VendorProductCreateForm />
-      </div>
-
-      {/* Orders Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Orders</CardTitle>
-          <CardDescription>Manage your customer orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {ordersLoading ? (
-            <div className="text-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-              <p className="text-sm text-muted-foreground">Loading orders...</p>
-            </div>
-          ) : vendorOrders.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground">No orders yet</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vendorOrders.map((order) => {
-                  const product = products.find((p) => p.id === order.productId);
-                  return (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-mono text-xs">
-                        {order.id.slice(0, 12)}...
-                      </TableCell>
-                      <TableCell>{product?.name || 'Unknown'}</TableCell>
-                      <TableCell>{Number(order.quantity)}</TableCell>
-                      <TableCell>{(Number(order.totalAmount) / 100000000).toFixed(2)} ICP</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(order.status)}>
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {order.status === OrderStatus.pending && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateStatus(order.id, OrderStatus.paid)}
-                            >
-                              Mark Paid
-                            </Button>
-                          )}
-                          {order.status === OrderStatus.paid && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateStatus(order.id, OrderStatus.shipped)}
-                            >
-                              Mark Shipped
-                            </Button>
-                          )}
-                          {order.status === OrderStatus.shipped && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateStatus(order.id, OrderStatus.delivered)}
-                            >
-                              Mark Delivered
-                            </Button>
-                          )}
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Display Name</p>
+                      <p className="text-lg font-semibold">{vendor?.displayName}</p>
+                    </div>
+                    {vendor?.bio && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Bio</p>
+                        <p className="text-sm">{vendor.bio}</p>
+                      </div>
+                    )}
+                    {vendor?.categories && vendor.categories.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Categories</p>
+                        <div className="flex flex-wrap gap-2">
+                          {vendor.categories.map((category, idx) => (
+                            <Badge key={idx} variant="secondary">
+                              {category}
+                            </Badge>
+                          ))}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </div>
+                    )}
+                    <Separator />
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Vendor ID</p>
+                      <p className="font-mono text-xs break-all text-muted-foreground">
+                        {vendor?.principalId?.toString()}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Balance Management</CardTitle>
+                <CardDescription>Withdraw your earnings</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Available Balance</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {(Number(balance) / 1e8).toFixed(8)} ICP
+                  </p>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <Label htmlFor="withdrawAmount">Withdraw Amount (ICP)</Label>
+                  <Input
+                    id="withdrawAmount"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    placeholder="0.0000"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                  />
+                </div>
+                <Button
+                  onClick={handleWithdraw}
+                  disabled={withdrawBalance.isPending || !withdrawAmount}
+                  className="w-full"
+                >
+                  {withdrawBalance.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Withdraw'
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Products Tab */}
+        <TabsContent value="products">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5" />
+                My Products
+              </CardTitle>
+              <CardDescription>Your product listings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MyProductsSection
+                vendorId={vendorIdStr ?? ''}
+                onAddProduct={handleScrollToProductForm}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Create Product Form */}
+          {(showProductForm || isOnboardingIncomplete) && (
+            <div ref={productFormRef} className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Add New Product</CardTitle>
+                  <CardDescription>Create a new product listing for your store</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <VendorProductCreateForm
+                    vendorId={vendorIdStr ?? ''}
+                    onSuccess={() => setShowProductForm(false)}
+                  />
+                </CardContent>
+              </Card>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        {/* Orders Tab */}
+        <TabsContent value="orders">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Orders
+              </CardTitle>
+              <CardDescription>Manage incoming orders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : vendorOrders.length === 0 ? (
+                <div className="text-center py-10">
+                  <Package className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-muted-foreground text-sm">No orders yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {vendorOrders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-mono text-xs">{order.id.slice(0, 12)}…</TableCell>
+                        <TableCell className="text-xs">{order.productId.slice(0, 12)}…</TableCell>
+                        <TableCell>{order.quantity.toString()}</TableCell>
+                        <TableCell>{(Number(order.totalAmount) / 1e8).toFixed(4)} ICP</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(order.status)}>
+                            {order.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {order.status === OrderStatus.pending && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-7"
+                                onClick={() => handleUpdateStatus(order.id, OrderStatus.paid)}
+                              >
+                                Mark Paid
+                              </Button>
+                            )}
+                            {order.status === OrderStatus.paid && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-7"
+                                onClick={() => handleUpdateStatus(order.id, OrderStatus.shipped)}
+                              >
+                                Mark Shipped
+                              </Button>
+                            )}
+                            {order.status === OrderStatus.shipped && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-7"
+                                onClick={() => handleUpdateStatus(order.id, OrderStatus.delivered)}
+                              >
+                                Mark Delivered
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* My Reviews Tab */}
+        <TabsContent value="reviews">
+          {vendorIdStr ? (
+            <VendorReviewsSection vendorId={vendorIdStr} readOnly={true} />
+          ) : (
+            <div className="text-center py-10 text-muted-foreground text-sm">
+              No vendor profile found.
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

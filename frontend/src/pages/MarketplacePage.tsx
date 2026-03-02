@@ -1,13 +1,17 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetProjectEntries, useIsCallerAdmin, useTrackProjectView, useGetAllAnalytics, useGetCallerUserProfile } from '../hooks/useQueries';
+import {
+  useGetProjectEntries,
+  useIsCallerAdmin,
+  useTrackProjectView,
+  useGetAllAnalytics,
+  useGetCallerUserProfile,
+} from '../hooks/useQueries';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, ExternalLink, TrendingUp, Star, BarChart3, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, TrendingUp, Star, BarChart3, ArrowUpDown } from 'lucide-react';
 import DAppCard from '../components/DAppCard';
 import AddDAppModal from '../components/AddDAppModal';
 import AdminPanel from '../components/AdminPanel';
@@ -20,11 +24,12 @@ type SortOption = 'name-asc' | 'name-desc' | 'newest';
 
 export default function MarketplacePage() {
   const { identity } = useInternetIdentity();
-  const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
+  const { data: isAdmin } = useIsCallerAdmin();
   const { data: projectEntries = [], isLoading } = useGetProjectEntries();
   const { data: analytics = [] } = useGetAllAnalytics();
   const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
   const trackView = useTrackProjectView();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -32,49 +37,38 @@ export default function MarketplacePage() {
   const [trackedViews, setTrackedViews] = useState<Set<string>>(new Set());
 
   const isAuthenticated = !!identity;
-  // Only show profile setup when authenticated, actor is ready, query has fetched, and profile is null
   const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
 
-  // Track view for a project (only once per session)
-  const handleTrackView = useCallback((projectId: string) => {
-    if (!trackedViews.has(projectId)) {
-      trackView.mutate(projectId);
-      setTrackedViews(prev => new Set(prev).add(projectId));
-    }
-  }, [trackedViews, trackView]);
+  const handleTrackView = useCallback(
+    (projectId: string) => {
+      if (!trackedViews.has(projectId)) {
+        trackView.mutate(projectId);
+        setTrackedViews((prev) => new Set(prev).add(projectId));
+      }
+    },
+    [trackedViews, trackView]
+  );
 
-  // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
-    let filtered = projectEntries.filter(entry => {
-      const matchesSearch = entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           entry.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    });
+    const filtered = projectEntries.filter(
+      (entry) =>
+        entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-    // Sort projects
-    const sorted = [...filtered].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'name-asc':
           return a.name.localeCompare(b.name);
         case 'name-desc':
           return b.name.localeCompare(a.name);
         case 'newest':
-          // Assuming newer entries have higher IDs (simple heuristic)
           return b.id.localeCompare(a.id);
         default:
           return 0;
       }
     });
-
-    return sorted;
   }, [projectEntries, searchQuery, sortBy]);
-
-  // Check if admin panel should be shown
-  useMemo(() => {
-    if (window.location.hash === '#admin' && isAdmin) {
-      setShowAdmin(true);
-    }
-  }, [isAdmin]);
 
   if (!isAuthenticated) {
     return (
@@ -86,7 +80,8 @@ export default function MarketplacePage() {
             <CardHeader>
               <CardTitle className="text-2xl">Welcome to CitizensCo CAppStores</CardTitle>
               <CardDescription>
-                Please log in to explore the decentralized DApp marketplace and discover amazing Web3 applications.
+                Please log in to explore the decentralized DApp marketplace and discover amazing
+                Web3 applications.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -163,7 +158,10 @@ export default function MarketplacePage() {
                   className="pl-10"
                 />
               </div>
-              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+              <Select
+                value={sortBy}
+                onValueChange={(value) => setSortBy(value as SortOption)}
+              >
                 <SelectTrigger className="w-full md:w-[200px]">
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Sort by" />
@@ -205,7 +203,9 @@ export default function MarketplacePage() {
 
       {/* Modals */}
       <AddDAppModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
-      {showProfileSetup && <ProfileSetupModal />}
+      {showProfileSetup && (
+        <ProfileSetupModal open={showProfileSetup} onComplete={() => {}} />
+      )}
     </div>
   );
 }

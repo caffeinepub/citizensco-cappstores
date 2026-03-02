@@ -1,12 +1,13 @@
 # Specification
 
 ## Summary
-**Goal:** Wire all remaining frontend pages to live backend data, complete pending integration tasks, and apply consistent UI polish across the CitizensCo CAppStores application.
+**Goal:** Extend the vendor reviews system (Stage 11) with aggregate rating display across the directory and storefront pages, plus a backend summary query and a sort-by-rating feature.
 
 **Planned changes:**
-- Replace all mock/static analytics values in GlobalDashboardPage (views, clicks, active campaigns, reward pools, ad revenue) with live data fetched via React Query hooks against the backend actor.
-- Audit all pages and components still using mock or local data and replace them with live React Query hooks covering all required backend calls.
-- Apply UI polish across MarketplacePage, RewardsPage, ShopPage, VendorPage, VendorDirectoryPage, DiscoveryHubPage, OrdersPage, WalletPage, and AdminPanel to ensure consistent use of OKLCH design tokens for spacing, typography, badge styles, and card layouts.
-- Ensure light and dark theme variants render correctly on all polished pages with no conflicting inline style overrides.
+- Add a `getVendorRatingSummary` query to the Motoko backend that returns `averageRating` (Float) and `reviewCount` (Nat) for a given vendor ID
+- Add a `useVendorRatingSummary(vendorId)` React Query hook in `useQueries.ts` that calls the new backend query
+- Display an average star rating badge (or "No reviews yet") on each vendor card in VendorDirectoryPage using the new hook
+- Show average star rating and total review count in the VendorStorePage header/hero section, updating reactively when new reviews are submitted
+- Add a "Top Rated" / "Rating" sort option to VendorDirectoryPage sort controls that sorts vendors descending by average rating and syncs to URL params
 
-**User-visible outcome:** All dashboard and page metrics reflect live backend data with no mock values, and the entire app displays a visually consistent UI using the established design system across all pages and themes.
+**User-visible outcome:** Users browsing the vendor directory see star ratings on each vendor card and can sort by highest-rated vendors. Visitors to a vendor's storefront see the vendor's overall rating and review count at a glance.

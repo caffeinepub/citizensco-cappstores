@@ -72,6 +72,19 @@ export const Order = IDL.Record({
   'quantity' : IDL.Nat,
   'customerId' : IDL.Principal,
 });
+export const Review = IDL.Record({
+  'createdAt' : IDL.Int,
+  'comment' : IDL.Text,
+  'vendorId' : IDL.Text,
+  'rating' : IDL.Nat,
+  'reviewId' : IDL.Text,
+  'authorPrincipal' : IDL.Principal,
+});
+export const ReviewsAggregate = IDL.Record({
+  'reviews' : IDL.Vec(Review),
+  'count' : IDL.Nat,
+  'averageRating' : IDL.Float64,
+});
 export const RewardCampaignType = IDL.Variant({
   'reward' : IDL.Null,
   'contest' : IDL.Null,
@@ -172,6 +185,7 @@ export const idlService = IDL.Service({
   'createUserProfile' : IDL.Func([UserProfile], [], []),
   'createVendor' : IDL.Func([IDL.Text, IDL.Text, IDL.Vec(IDL.Text)], [], []),
   'finishOnboarding' : IDL.Func([], [], []),
+  'getAverageRating' : IDL.Func([IDL.Text], [IDL.Float64], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getOrder' : IDL.Func([IDL.Text], [IDL.Opt(Order)], ['query']),
@@ -186,6 +200,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(ProjectEntry)],
       ['query'],
     ),
+  'getReviewsAggregate' : IDL.Func([IDL.Text], [ReviewsAggregate], ['query']),
   'getRewardCampaign' : IDL.Func(
       [IDL.Text],
       [IDL.Opt(RewardCampaign)],
@@ -201,9 +216,17 @@ export const idlService = IDL.Service({
   'getVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
   'getVendorBalance' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
   'getVendorOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'getVendorReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
+  'listAllUnpublishedVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
+  'listAllVendorsQuery' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
   'listOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'listProductStockByVendorId' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(Product)],
+      ['query'],
+    ),
   'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
   'listPublicVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
   'listPublicVendorsByCategory' : IDL.Func(
@@ -214,7 +237,13 @@ export const idlService = IDL.Service({
   'listRewardCampaigns' : IDL.Func([], [IDL.Vec(RewardCampaign)], ['query']),
   'publishVendor' : IDL.Func([], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'searchCategory' : IDL.Func([IDL.Text], [IDL.Vec(Vendor)], ['query']),
   'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+  'submitReview' : IDL.Func(
+      [IDL.Text, IDL.Nat, IDL.Text],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+      [],
+    ),
   'transform' : IDL.Func(
       [TransformationInput],
       [TransformationOutput],
@@ -228,6 +257,7 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'verifyVendor' : IDL.Func([IDL.Principal], [], []),
   'withdrawVendorBalance' : IDL.Func([IDL.Nat], [], []),
 });
 
@@ -297,6 +327,19 @@ export const idlFactory = ({ IDL }) => {
     'vendorId' : IDL.Principal,
     'quantity' : IDL.Nat,
     'customerId' : IDL.Principal,
+  });
+  const Review = IDL.Record({
+    'createdAt' : IDL.Int,
+    'comment' : IDL.Text,
+    'vendorId' : IDL.Text,
+    'rating' : IDL.Nat,
+    'reviewId' : IDL.Text,
+    'authorPrincipal' : IDL.Principal,
+  });
+  const ReviewsAggregate = IDL.Record({
+    'reviews' : IDL.Vec(Review),
+    'count' : IDL.Nat,
+    'averageRating' : IDL.Float64,
   });
   const RewardCampaignType = IDL.Variant({
     'reward' : IDL.Null,
@@ -395,6 +438,7 @@ export const idlFactory = ({ IDL }) => {
     'createUserProfile' : IDL.Func([UserProfile], [], []),
     'createVendor' : IDL.Func([IDL.Text, IDL.Text, IDL.Vec(IDL.Text)], [], []),
     'finishOnboarding' : IDL.Func([], [], []),
+    'getAverageRating' : IDL.Func([IDL.Text], [IDL.Float64], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getOrder' : IDL.Func([IDL.Text], [IDL.Opt(Order)], ['query']),
@@ -409,6 +453,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(ProjectEntry)],
         ['query'],
       ),
+    'getReviewsAggregate' : IDL.Func([IDL.Text], [ReviewsAggregate], ['query']),
     'getRewardCampaign' : IDL.Func(
         [IDL.Text],
         [IDL.Opt(RewardCampaign)],
@@ -424,9 +469,17 @@ export const idlFactory = ({ IDL }) => {
     'getVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
     'getVendorBalance' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
     'getVendorOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'getVendorReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
+    'listAllUnpublishedVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
+    'listAllVendorsQuery' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
     'listOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'listProductStockByVendorId' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(Product)],
+        ['query'],
+      ),
     'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
     'listPublicVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
     'listPublicVendorsByCategory' : IDL.Func(
@@ -437,7 +490,13 @@ export const idlFactory = ({ IDL }) => {
     'listRewardCampaigns' : IDL.Func([], [IDL.Vec(RewardCampaign)], ['query']),
     'publishVendor' : IDL.Func([], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'searchCategory' : IDL.Func([IDL.Text], [IDL.Vec(Vendor)], ['query']),
     'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+    'submitReview' : IDL.Func(
+        [IDL.Text, IDL.Nat, IDL.Text],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+        [],
+      ),
     'transform' : IDL.Func(
         [TransformationInput],
         [TransformationOutput],
@@ -451,6 +510,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'verifyVendor' : IDL.Func([IDL.Principal], [], []),
     'withdrawVendorBalance' : IDL.Func([IDL.Nat], [], []),
   });
 };

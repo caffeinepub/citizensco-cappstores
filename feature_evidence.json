@@ -1,4 +1,95 @@
 {
   "kind": "feature_evidence_report",
-  "features": []
+  "features": [
+    {
+      "featureId": "feature-implement-average-rating-display-on-the-vendorcard-vendordirectorypage-compute-and-show-a-star-rating-badge-average-of-all-reviews-for-each-vendor-in-the-directory-listing-using-the-existing-review-data-from-the-backend",
+      "featureTitle": "Implement average rating display on the VendorCard/VendorDirectoryPage: compute and show a star rating badge (average of all reviews) for each vendor in the directory listing, using the existing review data from the backend.",
+      "files": [
+        "frontend/src/components/VendorCard.tsx",
+        "frontend/src/pages/VendorDirectoryPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "stripe@3.0.0",
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-add-average-rating-and-review-count-display-to-the-vendorstorepage-public-storefront-header-pulling-data-from-the-existing-reviews-query-so-visitors-can-see-the-vendor-s-overall-rating-at-a-glance",
+      "featureTitle": "Add average rating and review count display to the VendorStorePage public storefront header, pulling data from the existing reviews query so visitors can see the vendor's overall rating at a glance.",
+      "files": [
+        "frontend/src/pages/VendorStorePage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "stripe@3.0.0",
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-expose-the-new-getvendorratingsummary-backend-query-in-usequeries-ts-as-a-react-query-hook-e-g-usevendorratingsummary-vendorid-and-use-it-in-vendordirectorypage-and-vendorstorepage-for-displaying-aggregate-rating-stats",
+      "featureTitle": "Expose the new getVendorRatingSummary backend query in useQueries.ts as a React Query hook (e.g., useVendorRatingSummary(vendorId)), and use it in VendorDirectoryPage and VendorStorePage for displaying aggregate rating stats.",
+      "files": [
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "stripe@3.0.0",
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-add-a-sortable-rating-column-option-to-vendordirectorypage-so-users-can-sort-vendors-by-their-average-rating-highest-rated-first-leveraging-the-existing-sort-controls-and-vendordiscovery-utility-helpers",
+      "featureTitle": "Add a sortable 'Rating' column/option to VendorDirectoryPage so users can sort vendors by their average rating (highest-rated first), leveraging the existing sort controls and vendorDiscovery utility helpers.",
+      "files": [
+        "frontend/src/pages/VendorDirectoryPage.tsx",
+        "frontend/src/utils/vendorDiscovery.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "stripe@3.0.0",
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    }
+  ]
 }
