@@ -12,12 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useListPublicVendors, useVendorRatingSummary } from '../hooks/useQueries';
+import { useListPublicVendors, useGetVendorRatingSummary } from '../hooks/useQueries';
 import { searchVendors, filterVendorsByCategory, sortVendors, extractUniqueCategories } from '../utils/vendorDiscovery';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import VendorCard from '../components/VendorCard';
 import type { Vendor } from '../backend';
 import type { VendorSortKey } from '../utils/vendorDiscovery';
+import { Principal } from '@dfinity/principal';
 
 // Helper to read/write URL params
 function getParam(key: string): string {
@@ -35,28 +36,31 @@ function setParam(key: string, value: string) {
   window.history.replaceState({}, '', newUrl);
 }
 
-// Sub-component that fetches rating for a single vendor (used to build rating map)
-function useVendorRatings(vendors: Vendor[]): Map<string, number> {
-  // We can't call hooks in a loop, so we build the map from the parent
-  // This is a placeholder - the actual rating map is built in the parent via individual hook calls
-  return new Map();
-}
-
 // Individual vendor rating fetcher - used to populate rating map
-// We render a hidden component per vendor to collect ratings
 function VendorRatingCollector({
-  vendorId,
+  vendor,
   onRating,
 }: {
-  vendorId: string;
+  vendor: Vendor;
   onRating: (id: string, rating: number) => void;
 }) {
-  const { data } = useVendorRatingSummary(vendorId);
+  const vendorPrincipal = React.useMemo(() => {
+    try {
+      return Principal.fromText(vendor.principalId.toString());
+    } catch {
+      return null;
+    }
+  }, [vendor.principalId]);
+
+  const { data } = useGetVendorRatingSummary(vendorPrincipal);
+  const vendorId = vendor.principalId.toString();
+
   React.useEffect(() => {
     if (data !== undefined) {
       onRating(vendorId, data.averageRating);
     }
   }, [data, vendorId, onRating]);
+
   return null;
 }
 
@@ -203,7 +207,7 @@ export default function VendorDirectoryPage() {
         {vendors.map((vendor) => (
           <VendorRatingCollector
             key={vendor.principalId.toString()}
-            vendorId={vendor.principalId.toString()}
+            vendor={vendor}
             onRating={handleRating}
           />
         ))}

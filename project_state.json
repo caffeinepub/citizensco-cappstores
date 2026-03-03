@@ -7,44 +7,20 @@
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-implement-average-rating-display-on-the-vendorcard-vendordirectorypage-compute-and-show-a-star-rating-badge-average-of-all-reviews-for-each-vendor-in-the-directory-listing-using-the-existing-review-data-from-the-backend",
-      "title": "Implement average rating display on the VendorCard/VendorDirectoryPage: compute and show a star rating badge (average of all reviews) for each vendor in the directory listing, using the existing review data from the backend.",
-      "reqIds": [
-        "REQ-1"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-add-average-rating-and-review-count-display-to-the-vendorstorepage-public-storefront-header-pulling-data-from-the-existing-reviews-query-so-visitors-can-see-the-vendor-s-overall-rating-at-a-glance",
-      "title": "Add average rating and review count display to the VendorStorePage public storefront header, pulling data from the existing reviews query so visitors can see the vendor's overall rating at a glance.",
+      "id": "feature-add-a-usegetvendorratingsummary-vendorid-react-query-hook-in-frontend-src-hooks-usequeries-ts-that-calls-the-new-getvendorratingsummary-backend-query-replacing-any-frontend-side-aggregation-of-raw-review-data-for-rating-summaries-update-vendorcard-tsx-vendorstorepage-tsx-and-vendorreviewssection-tsx-to-use-this-hook",
+      "title": "Add a `useGetVendorRatingSummary(vendorId)` React Query hook in `frontend/src/hooks/useQueries.ts` that calls the new `getVendorRatingSummary` backend query, replacing any frontend-side aggregation of raw review data for rating summaries. Update `VendorCard.tsx`, `VendorStorePage.tsx`, and `VendorReviewsSection.tsx` to use this hook.",
       "reqIds": [
         "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-expose-the-new-getvendorratingsummary-backend-query-in-usequeries-ts-as-a-react-query-hook-e-g-usevendorratingsummary-vendorid-and-use-it-in-vendordirectorypage-and-vendorstorepage-for-displaying-aggregate-rating-stats",
-      "title": "Expose the new getVendorRatingSummary backend query in useQueries.ts as a React Query hook (e.g., useVendorRatingSummary(vendorId)), and use it in VendorDirectoryPage and VendorStorePage for displaying aggregate rating stats.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-add-a-sortable-rating-column-option-to-vendordirectorypage-so-users-can-sort-vendors-by-their-average-rating-highest-rated-first-leveraging-the-existing-sort-controls-and-vendordiscovery-utility-helpers",
-      "title": "Add a sortable 'Rating' column/option to VendorDirectoryPage so users can sort vendors by their average rating (highest-rated first), leveraging the existing sort controls and vendorDiscovery utility helpers.",
-      "reqIds": [
-        "REQ-5"
       ],
       "version": 1
     }
   ],
   "new_feature_requests": [
     {
-      "id": "AR-3",
-      "summary": "Add backend support for retrieving all reviews for a given vendor as an aggregate (average rating + count) via a dedicated query function, so the frontend can efficiently fetch summary stats without loading full review objects for listing pages.",
+      "id": "AR-1",
+      "summary": "Add a dedicated backend query function `getVendorRatingSummary(vendorId: Principal)` that returns a structured rating summary for a given vendor, including average star rating (Float), total review count (Nat), and a breakdown of counts per star level (1–5). This should replace or complement the current approach where rating data is aggregated on the frontend from raw reviews.",
       "reqIds": [
-        "REQ-3"
+        "REQ-1"
       ],
       "status": "pending"
     }

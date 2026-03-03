@@ -15,9 +15,7 @@ import MixinAuthorization "authorization/MixinAuthorization";
 import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Float "mo:core/Float";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   include MixinStorage();
 
@@ -52,10 +50,11 @@ actor {
     createdAt : Int;
   };
 
-  public type ReviewsAggregate = {
-    reviews : [Review];
-    count : Nat;
+  public type VendorRatingSummary = {
+    vendorId : ?Principal;
     averageRating : Float;
+    totalReviews : Nat;
+    starBreakdown : [Nat];
   };
 
   // Reward campaign types/records
@@ -568,40 +567,6 @@ actor {
     values.toArray();
   };
 
-  /// Aggregate review data for a vendor.
-  public query func getReviewsAggregate(vendorId : Text) : async ReviewsAggregate {
-    let vendorReviews = reviews.values().filter(
-      func(review) {
-        Text.equal(review.vendorId, vendorId);
-      }
-    );
-    let reviewsArray = vendorReviews.toArray();
-    let count = reviewsArray.size();
-
-    if (count == 0) {
-      return {
-        reviews = [];
-        count = 0;
-        averageRating = 0.0;
-      };
-    };
-
-    let sum = reviewsArray.foldLeft(
-      0,
-      func(acc, review) {
-        acc + review.rating;
-      },
-    );
-
-    let averageRating = Int.fromNat(sum).toFloat() / Int.fromNat(count).toFloat();
-
-    {
-      reviews = reviewsArray;
-      count;
-      averageRating;
-    };
-  };
-
   /// Returns the average rating for a given vendorId (principalId as Text).
   /// Read-only: accessible by anyone including guests.
   public query func getAverageRating(vendorId : Text) : async Float {
@@ -624,6 +589,49 @@ actor {
     );
 
     Int.fromNat(sum).toFloat() / Int.fromNat(reviewsList.size()).toFloat();
+  };
+
+  /// Returns a rating summary for the given vendor, including average rating,
+  /// total number of reviews, and a breakdown of review counts per star level.
+  public query ({ caller }) func getVendorRatingSummary(vendorId : Principal) : async VendorRatingSummary {
+    let vendorIdText = vendorId.toText();
+    let vendorReviews = reviews.values().toArray().filter(
+      func(review) {
+        Text.equal(review.vendorId, vendorIdText);
+      }
+    );
+
+    let totalReviews = vendorReviews.size();
+
+    let starBreakdown = Array.tabulate(
+      5,
+      func(i) {
+        let stars = i + 1;
+        vendorReviews.filter(
+          func(review) {
+            review.rating == stars;
+          }
+        ).size();
+      },
+    );
+
+    let totalScore = vendorReviews.foldLeft(
+      0,
+      func(acc, review) {
+        acc + review.rating;
+      },
+    );
+
+    let averageRating = if (totalReviews > 0) {
+      Int.fromNat(totalScore).toFloat() / Int.fromNat(totalReviews).toFloat();
+    } else { 0.0 };
+
+    {
+      vendorId = ?vendorId;
+      averageRating;
+      totalReviews;
+      starBreakdown;
+    };
   };
 
   /// Creates a new review for the calling principal.

@@ -72,19 +72,6 @@ export const Order = IDL.Record({
   'quantity' : IDL.Nat,
   'customerId' : IDL.Principal,
 });
-export const Review = IDL.Record({
-  'createdAt' : IDL.Int,
-  'comment' : IDL.Text,
-  'vendorId' : IDL.Text,
-  'rating' : IDL.Nat,
-  'reviewId' : IDL.Text,
-  'authorPrincipal' : IDL.Principal,
-});
-export const ReviewsAggregate = IDL.Record({
-  'reviews' : IDL.Vec(Review),
-  'count' : IDL.Nat,
-  'averageRating' : IDL.Float64,
-});
 export const RewardCampaignType = IDL.Variant({
   'reward' : IDL.Null,
   'contest' : IDL.Null,
@@ -122,6 +109,20 @@ export const Vendor = IDL.Record({
   'createdAt' : IDL.Int,
   'vendorOwner' : IDL.Principal,
   'principalId' : IDL.Principal,
+});
+export const VendorRatingSummary = IDL.Record({
+  'averageRating' : IDL.Float64,
+  'starBreakdown' : IDL.Vec(IDL.Nat),
+  'vendorId' : IDL.Opt(IDL.Principal),
+  'totalReviews' : IDL.Nat,
+});
+export const Review = IDL.Record({
+  'createdAt' : IDL.Int,
+  'comment' : IDL.Text,
+  'vendorId' : IDL.Text,
+  'rating' : IDL.Nat,
+  'reviewId' : IDL.Text,
+  'authorPrincipal' : IDL.Principal,
 });
 export const StripeConfiguration = IDL.Record({
   'allowedCountries' : IDL.Vec(IDL.Text),
@@ -200,7 +201,6 @@ export const idlService = IDL.Service({
       [IDL.Vec(ProjectEntry)],
       ['query'],
     ),
-  'getReviewsAggregate' : IDL.Func([IDL.Text], [ReviewsAggregate], ['query']),
   'getRewardCampaign' : IDL.Func(
       [IDL.Text],
       [IDL.Opt(RewardCampaign)],
@@ -216,6 +216,11 @@ export const idlService = IDL.Service({
   'getVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
   'getVendorBalance' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
   'getVendorOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'getVendorRatingSummary' : IDL.Func(
+      [IDL.Principal],
+      [VendorRatingSummary],
+      ['query'],
+    ),
   'getVendorReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
@@ -328,19 +333,6 @@ export const idlFactory = ({ IDL }) => {
     'quantity' : IDL.Nat,
     'customerId' : IDL.Principal,
   });
-  const Review = IDL.Record({
-    'createdAt' : IDL.Int,
-    'comment' : IDL.Text,
-    'vendorId' : IDL.Text,
-    'rating' : IDL.Nat,
-    'reviewId' : IDL.Text,
-    'authorPrincipal' : IDL.Principal,
-  });
-  const ReviewsAggregate = IDL.Record({
-    'reviews' : IDL.Vec(Review),
-    'count' : IDL.Nat,
-    'averageRating' : IDL.Float64,
-  });
   const RewardCampaignType = IDL.Variant({
     'reward' : IDL.Null,
     'contest' : IDL.Null,
@@ -378,6 +370,20 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : IDL.Int,
     'vendorOwner' : IDL.Principal,
     'principalId' : IDL.Principal,
+  });
+  const VendorRatingSummary = IDL.Record({
+    'averageRating' : IDL.Float64,
+    'starBreakdown' : IDL.Vec(IDL.Nat),
+    'vendorId' : IDL.Opt(IDL.Principal),
+    'totalReviews' : IDL.Nat,
+  });
+  const Review = IDL.Record({
+    'createdAt' : IDL.Int,
+    'comment' : IDL.Text,
+    'vendorId' : IDL.Text,
+    'rating' : IDL.Nat,
+    'reviewId' : IDL.Text,
+    'authorPrincipal' : IDL.Principal,
   });
   const StripeConfiguration = IDL.Record({
     'allowedCountries' : IDL.Vec(IDL.Text),
@@ -453,7 +459,6 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(ProjectEntry)],
         ['query'],
       ),
-    'getReviewsAggregate' : IDL.Func([IDL.Text], [ReviewsAggregate], ['query']),
     'getRewardCampaign' : IDL.Func(
         [IDL.Text],
         [IDL.Opt(RewardCampaign)],
@@ -469,6 +474,11 @@ export const idlFactory = ({ IDL }) => {
     'getVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
     'getVendorBalance' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
     'getVendorOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'getVendorRatingSummary' : IDL.Func(
+        [IDL.Principal],
+        [VendorRatingSummary],
+        ['query'],
+      ),
     'getVendorReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),

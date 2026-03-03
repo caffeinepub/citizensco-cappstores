@@ -1,54 +1,18 @@
 import React, { useState } from 'react';
-import { Star } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Star, MessageSquare, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { useGetVendorReviews, useSubmitVendorReview } from '../../hooks/useQueries';
+import { Card, CardContent } from '@/components/ui/card';
+import { useGetVendorReviews, useSubmitVendorReview, useGetVendorRatingSummary } from '../../hooks/useQueries';
 import { useInternetIdentity } from '../../hooks/useInternetIdentity';
+import { Principal } from '@dfinity/principal';
 import { toast } from 'sonner';
-import { Review } from '../../backend';
 
 interface VendorReviewsSectionProps {
   vendorId: string;
+  vendorPrincipal?: Principal | null;
   readOnly?: boolean;
-}
-
-function formatRelativeTime(createdAt: bigint): string {
-  const ms = Number(createdAt) / 1_000_000;
-  const diff = Date.now() - ms;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(months / 12)}y ago`;
-}
-
-function truncatePrincipal(principal: string): string {
-  if (principal.length <= 12) return principal;
-  return `${principal.slice(0, 8)}...`;
-}
-
-function StarRating({ rating, max = 5 }: { rating: number; max?: number }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: max }).map((_, i) => (
-        <Star
-          key={i}
-          className={`h-4 w-4 ${
-            i < rating ? 'fill-amber-400 text-amber-400' : 'fill-muted text-muted-foreground/30'
-          }`}
-        />
-      ))}
-    </div>
-  );
 }
 
 function StarSelector({
@@ -61,28 +25,24 @@ function StarSelector({
   disabled?: boolean;
 }) {
   const [hovered, setHovered] = useState(0);
-
   return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: 5 }).map((_, i) => {
-        const starValue = i + 1;
-        const filled = hovered ? starValue <= hovered : starValue <= value;
+    <div className="flex gap-1">
+      {Array.from({ length: 5 }, (_, i) => {
+        const star = i + 1;
+        const filled = star <= (hovered || value);
         return (
           <button
-            key={i}
+            key={star}
             type="button"
             disabled={disabled}
-            onClick={() => onChange(starValue)}
-            onMouseEnter={() => setHovered(starValue)}
+            onClick={() => onChange(star)}
+            onMouseEnter={() => setHovered(star)}
             onMouseLeave={() => setHovered(0)}
             className="focus:outline-none disabled:cursor-not-allowed"
-            aria-label={`Rate ${starValue} star${starValue > 1 ? 's' : ''}`}
           >
             <Star
-              className={`h-6 w-6 transition-colors ${
-                filled
-                  ? 'fill-amber-400 text-amber-400'
-                  : 'fill-muted text-muted-foreground/30 hover:fill-amber-200 hover:text-amber-200'
+              className={`w-6 h-6 transition-colors ${
+                filled ? 'fill-amber-400 text-amber-400' : 'fill-muted text-muted-foreground'
               }`}
             />
           </button>
@@ -92,46 +52,64 @@ function StarSelector({
   );
 }
 
-function ReviewCard({ review }: { review: Review }) {
+function RatingSummaryBar({
+  label,
+  count,
+  total,
+}: {
+  label: string;
+  count: number;
+  total: number;
+}) {
+  const pct = total > 0 ? (count / total) * 100 : 0;
   return (
-    <div className="py-4">
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2">
-          <StarRating rating={Number(review.rating)} />
-          <span className="text-xs text-muted-foreground font-mono">
-            {truncatePrincipal(review.authorPrincipal.toString())}
-          </span>
-        </div>
-        <span className="text-xs text-muted-foreground shrink-0">
-          {formatRelativeTime(review.createdAt)}
-        </span>
+    <div className="flex items-center gap-2 text-sm">
+      <span className="w-12 text-muted-foreground shrink-0">{label}</span>
+      <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+        <div
+          className="bg-amber-400 h-2 rounded-full transition-all"
+          style={{ width: `${pct}%` }}
+        />
       </div>
-      {review.comment && (
-        <p className="text-sm text-foreground/80 leading-relaxed">{review.comment}</p>
-      )}
+      <span className="w-6 text-right text-muted-foreground shrink-0">{count}</span>
     </div>
   );
 }
 
-export default function VendorReviewsSection({ vendorId, readOnly = false }: VendorReviewsSectionProps) {
+export default function VendorReviewsSection({
+  vendorId,
+  vendorPrincipal,
+  readOnly = false,
+}: VendorReviewsSectionProps) {
   const { identity } = useInternetIdentity();
   const isAuthenticated = !!identity;
-
-  const { data: reviews = [], isLoading } = useGetVendorReviews(vendorId);
-  const submitReview = useSubmitVendorReview();
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
 
+  const { data: reviews, isLoading: reviewsLoading } = useGetVendorReviews(vendorId);
+
+  // Use the new backend-computed rating summary
+  const principalForSummary = vendorPrincipal ?? null;
+  const { data: ratingSummary, isLoading: summaryLoading } = useGetVendorRatingSummary(principalForSummary);
+
+  const submitReview = useSubmitVendorReview();
+
+  const averageRating = ratingSummary?.averageRating ?? 0;
+  const totalReviews = ratingSummary ? Number(ratingSummary.totalReviews) : 0;
+  const starBreakdown = ratingSummary?.starBreakdown
+    ? ratingSummary.starBreakdown.map((n) => Number(n))
+    : [0, 0, 0, 0, 0];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) {
-      toast.error('Please select a star rating');
+      toast.error('Please select a star rating.');
       return;
     }
     try {
       await submitReview.mutateAsync({ vendorId, rating, comment });
-      toast.success('Review submitted successfully!');
+      toast.success('Review submitted!');
       setRating(0);
       setComment('');
     } catch (err: unknown) {
@@ -140,40 +118,110 @@ export default function VendorReviewsSection({ vendorId, readOnly = false }: Ven
     }
   };
 
-  return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
-        <h2 className="text-xl font-semibold">Customer Reviews</h2>
-        {!isLoading && (
-          <span className="text-sm text-muted-foreground">({reviews.length})</span>
-        )}
-      </div>
+  const formatRelativeTime = (createdAt: bigint) => {
+    const ms = Number(createdAt) / 1_000_000;
+    const diff = Date.now() - ms;
+    const minutes = Math.floor(diff / 60_000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(ms).toLocaleDateString();
+  };
 
-      {/* Submit Form */}
+  const truncatePrincipal = (p: { toString(): string }) => {
+    const s = p.toString();
+    if (s.length <= 12) return s;
+    return `${s.slice(0, 6)}…${s.slice(-4)}`;
+  };
+
+  return (
+    <section>
+      <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+        <MessageSquare className="w-5 h-5" />
+        Reviews
+      </h2>
+
+      {/* Rating Summary */}
+      {summaryLoading ? (
+        <Card className="mb-6">
+          <CardContent className="p-4 space-y-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </CardContent>
+        </Card>
+      ) : totalReviews > 0 ? (
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row gap-6">
+              {/* Average score */}
+              <div className="flex flex-col items-center justify-center shrink-0">
+                <span className="text-4xl font-bold text-foreground">{averageRating.toFixed(1)}</span>
+                <div className="flex gap-0.5 my-1">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < Math.round(averageRating)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'fill-muted text-muted-foreground'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+                </span>
+              </div>
+
+              {/* Star breakdown bars */}
+              <div className="flex-1 space-y-1.5">
+                {[5, 4, 3, 2, 1].map((star) => (
+                  <RatingSummaryBar
+                    key={star}
+                    label={`${star} ★`}
+                    count={starBreakdown[star - 1] ?? 0}
+                    total={totalReviews}
+                  />
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="mb-6">
+          <CardContent className="p-4 text-center text-muted-foreground text-sm italic">
+            No reviews yet. Be the first to leave a review!
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Submit Review Form */}
       {!readOnly && (
-        <>
+        <div className="mb-6">
           {isAuthenticated ? (
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Leave a Review</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Your Rating</p>
+              <CardContent className="p-4">
+                <h3 className="font-medium text-foreground mb-3">Leave a Review</h3>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Your Rating</label>
                     <StarSelector
                       value={rating}
                       onChange={setRating}
                       disabled={submitReview.isPending}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Comment (optional)</p>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Comment (optional)</label>
                     <Textarea
-                      placeholder="Share your experience with this vendor..."
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
+                      placeholder="Share your experience with this vendor..."
                       rows={3}
                       disabled={submitReview.isPending}
                     />
@@ -183,59 +231,70 @@ export default function VendorReviewsSection({ vendorId, readOnly = false }: Ven
                     disabled={submitReview.isPending || rating === 0}
                     size="sm"
                   >
-                    {submitReview.isPending ? 'Submitting...' : 'Submit Review'}
+                    {submitReview.isPending ? 'Submitting…' : 'Submit Review'}
                   </Button>
                 </form>
               </CardContent>
             </Card>
           ) : (
-            <Card className="border-dashed">
-              <CardContent className="py-6 text-center">
-                <Star className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">
-                  Please{' '}
-                  <span className="text-primary font-medium">log in</span>
-                  {' '}to leave a review
-                </p>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3 text-muted-foreground">
+                <LogIn className="w-5 h-5 shrink-0" />
+                <span className="text-sm">Log in to leave a review for this vendor.</span>
               </CardContent>
             </Card>
           )}
-        </>
+        </div>
       )}
 
       {/* Reviews List */}
-      <Card>
-        <CardContent className="pt-4">
-          {isLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="py-3 space-y-2">
+      {reviewsLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+      ) : reviews && reviews.length > 0 ? (
+        <div className="space-y-3">
+          {reviews.map((review) => (
+            <Card key={review.reviewId}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-32" />
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < Number(review.rating)
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'fill-muted text-muted-foreground'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium text-foreground">
+                      {truncatePrincipal(review.authorPrincipal)}
+                    </span>
                   </div>
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {formatRelativeTime(review.createdAt)}
+                  </span>
                 </div>
-              ))}
-            </div>
-          ) : reviews.length === 0 ? (
-            <div className="py-10 text-center">
-              <Star className="h-10 w-10 mx-auto mb-3 text-muted-foreground/20" />
-              <p className="text-sm text-muted-foreground">No reviews yet</p>
-              {!readOnly && !isAuthenticated && (
-                <p className="text-xs text-muted-foreground mt-1">Be the first to leave a review!</p>
-              )}
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {reviews.map((review) => (
-                <ReviewCard key={review.reviewId} review={review} />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                {review.comment && (
+                  <p className="text-sm text-muted-foreground">{review.comment}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        !summaryLoading && totalReviews === 0 && (
+          <p className="text-center text-muted-foreground text-sm py-4">
+            No reviews have been posted yet.
+          </p>
+        )
+      )}
     </section>
   );
 }

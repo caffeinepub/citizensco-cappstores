@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Package, Store, Star } from 'lucide-react';
+import { Star, ArrowLeft, ShoppingBag, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,42 +8,18 @@ import { Separator } from '@/components/ui/separator';
 import {
   useListPublicVendors,
   useListProducts,
-  useVendorRatingSummary,
+  useGetVendorRatingSummary,
   useCreateOrder,
   CreateOrderInput,
 } from '../hooks/useQueries';
+import type { Product } from '../backend';
+import { Principal } from '@dfinity/principal';
 import ProductCard from '../components/ProductCard';
+import OrderConfirmationDialog from '../components/OrderConfirmationDialog';
 import VendorReviewsSection from '../components/vendor/VendorReviewsSection';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { toast } from 'sonner';
-import type { Product } from '../backend';
-import OrderConfirmationDialog, { OrderConfirmationData } from '../components/OrderConfirmationDialog';
-
-function StarRatingDisplay({ rating, count }: { rating: number; count: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={16}
-            className={
-              rating >= star
-                ? 'fill-amber-400 text-amber-400'
-                : rating >= star - 0.5
-                  ? 'fill-amber-200 text-amber-400'
-                  : 'fill-muted text-muted-foreground'
-            }
-          />
-        ))}
-      </div>
-      <span className="text-sm font-medium text-foreground">{rating.toFixed(1)}</span>
-      <span className="text-sm text-muted-foreground">
-        ({count} {count === 1 ? 'review' : 'reviews'})
-      </span>
-    </div>
-  );
-}
+import type { OrderConfirmationData } from '../types';
 
 export default function VendorStorePage() {
   const params = useParams({ strict: false }) as { vendorId?: string };
@@ -53,7 +29,6 @@ export default function VendorStorePage() {
 
   const { data: vendors = [], isLoading: vendorsLoading } = useListPublicVendors();
   const { data: allProducts = [], isLoading: productsLoading } = useListProducts();
-  const { data: ratingSummary, isLoading: ratingLoading } = useVendorRatingSummary(vendorId || null);
   const createOrder = useCreateOrder();
 
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
@@ -65,10 +40,25 @@ export default function VendorStorePage() {
     [vendors, vendorId]
   );
 
+  const vendorPrincipal = useMemo(() => {
+    if (!vendor) return null;
+    try {
+      return Principal.fromText(vendor.principalId.toString());
+    } catch {
+      return null;
+    }
+  }, [vendor]);
+
+  const { data: ratingSummary, isLoading: ratingLoading } = useGetVendorRatingSummary(vendorPrincipal);
+
   const vendorProducts = useMemo(
     () => allProducts.filter((p: Product) => p.vendorId.toString() === vendorId),
     [allProducts, vendorId]
   );
+
+  const averageRating = ratingSummary?.averageRating ?? 0;
+  const totalReviews = ratingSummary ? Number(ratingSummary.totalReviews) : 0;
+  const hasReviews = totalReviews > 0;
 
   const handleOrderClick = async (product: Product, quantity: number) => {
     if (!identity) {
@@ -83,7 +73,6 @@ export default function VendorStorePage() {
         vendorId: product.vendorId,
         quantity,
         totalAmount,
-        product,
       };
       const order = await createOrder.mutateAsync(input);
       setConfirmationData({
@@ -92,7 +81,7 @@ export default function VendorStorePage() {
         vendorName: vendor?.displayName ?? 'Unknown Vendor',
         quantity,
         totalAmount: order.totalAmount,
-        status: order.status,
+        status: String(order.status),
       });
       setConfirmationOpen(true);
     } catch (err: unknown) {
@@ -103,9 +92,20 @@ export default function VendorStorePage() {
     }
   };
 
-  const averageRating = ratingSummary?.averageRating ?? 0;
-  const reviewCount = ratingSummary ? Number(ratingSummary.count) : 0;
-  const hasReviews = reviewCount > 0;
+  const renderStars = (rating: number) =>
+    Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        size={16}
+        className={
+          rating >= i + 1
+            ? 'fill-amber-400 text-amber-400'
+            : rating >= i + 0.5
+              ? 'fill-amber-200 text-amber-400'
+              : 'fill-muted text-muted-foreground'
+        }
+      />
+    ));
 
   if (vendorsLoading) {
     return (
@@ -129,7 +129,7 @@ export default function VendorStorePage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Store size={48} className="text-muted-foreground mx-auto mb-4" />
+          <ShoppingBag size={48} className="text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Vendor not found</h2>
           <p className="text-muted-foreground mb-4">
             This vendor may not exist or is no longer active.
@@ -162,12 +162,10 @@ export default function VendorStorePage() {
       <div className="bg-gradient-to-br from-primary/8 via-background to-secondary/8 border-b border-border/50">
         <div className="max-w-5xl mx-auto px-4 py-10">
           <div className="flex items-start gap-5">
-            {/* Avatar */}
             <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center shadow-sm">
-              <Store size={28} className="text-primary" />
+              <ShoppingBag size={28} className="text-primary" />
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
@@ -180,7 +178,17 @@ export default function VendorStorePage() {
                     {ratingLoading ? (
                       <Skeleton className="h-5 w-40" />
                     ) : hasReviews ? (
-                      <StarRatingDisplay rating={averageRating} count={reviewCount} />
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-0.5">
+                          {renderStars(averageRating)}
+                        </div>
+                        <span className="text-sm font-medium text-foreground">
+                          {averageRating.toFixed(1)}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          ({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-sm text-muted-foreground italic">No reviews yet</span>
                     )}
@@ -252,7 +260,11 @@ export default function VendorStorePage() {
         <Separator className="my-10" />
 
         {/* Reviews Section */}
-        <VendorReviewsSection vendorId={vendorId} readOnly={false} />
+        <VendorReviewsSection
+          vendorId={vendorId}
+          vendorPrincipal={vendorPrincipal}
+          readOnly={false}
+        />
       </div>
 
       <OrderConfirmationDialog

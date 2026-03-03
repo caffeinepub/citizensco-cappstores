@@ -1,109 +1,57 @@
 {
   "kind": "build_request",
-  "title": "Stage 11 – Vendor Reviews & Ratings (Next Part)",
+  "title": "Stage 11 – Vendor Rating Summary Backend Query (AR-3)",
   "projectName": "CitizensCo CAppStores",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Implement average rating display on the VendorCard/VendorDirectoryPage: compute and show a star rating badge (average of all reviews) for each vendor in the directory listing, using the existing review data from the backend.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Next part of Stage 11 please"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Each vendor card in the VendorDirectoryPage displays an average star rating (1–5) computed from their reviews",
-        "If a vendor has no reviews, display a 'No reviews yet' indicator instead of a rating",
-        "Rating is visually represented with filled/empty stars or a numeric badge consistent with the existing design system"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Add average rating and review count display to the VendorStorePage public storefront header, pulling data from the existing reviews query so visitors can see the vendor's overall rating at a glance.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Next part of Stage 11 please"
-        ]
-      },
-      "acceptanceCriteria": [
-        "VendorStorePage header/hero section shows the vendor's average star rating and total review count",
-        "Data is derived from the same reviews query already used by VendorReviewsSection",
-        "Display updates reactively when new reviews are submitted"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Add backend support for retrieving all reviews for a given vendor as an aggregate (average rating + count) via a dedicated query function, so the frontend can efficiently fetch summary stats without loading full review objects for listing pages.",
+      "text": "Add a dedicated backend query function `getVendorRatingSummary(vendorId: Principal)` that returns a structured rating summary for a given vendor, including average star rating (Float), total review count (Nat), and a breakdown of counts per star level (1–5). This should replace or complement the current approach where rating data is aggregated on the frontend from raw reviews.",
       "target": "backend",
       "source": {
         "messageIds": [
           "msg-1"
         ],
         "quotes": [
-          "Next part of Stage 11 please"
+          "AR-3: add a dedicated vendor rating summary query"
         ]
       },
       "acceptanceCriteria": [
-        "A new query function (e.g., getVendorRatingSummary) accepts a vendor ID and returns the average rating and total review count",
-        "Returns a Result or optional record with averageRating (Float) and reviewCount (Nat)",
-        "Existing review storage and submission logic is unchanged"
+        "A public query `getVendorRatingSummary` exists in `backend/main.mo` accepting a vendor Principal and returning a record with averageRating (Float), totalReviews (Nat), and a per-star breakdown (array or record of Nat counts for stars 1–5).",
+        "The function returns a correct average based on all stored reviews for the vendor.",
+        "The per-star breakdown counts sum to totalReviews.",
+        "The function returns a zeroed/empty summary (not a trap or error) when no reviews exist for the given vendor."
       ]
     },
     {
-      "id": "REQ-4",
-      "text": "Expose the new getVendorRatingSummary backend query in useQueries.ts as a React Query hook (e.g., useVendorRatingSummary(vendorId)), and use it in VendorDirectoryPage and VendorStorePage for displaying aggregate rating stats.",
+      "id": "REQ-2",
+      "text": "Add a `useGetVendorRatingSummary(vendorId)` React Query hook in `frontend/src/hooks/useQueries.ts` that calls the new `getVendorRatingSummary` backend query, replacing any frontend-side aggregation of raw review data for rating summaries. Update `VendorCard.tsx`, `VendorStorePage.tsx`, and `VendorReviewsSection.tsx` to use this hook.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-1"
         ],
         "quotes": [
-          "Next part of Stage 11 please"
+          "AR-3: add a dedicated vendor rating summary query"
         ]
       },
       "acceptanceCriteria": [
-        "useVendorRatingSummary hook is added to frontend/src/hooks/useQueries.ts",
-        "Hook accepts a vendorId parameter and returns averageRating and reviewCount",
-        "Hook is consumed by VendorDirectoryPage vendor cards and VendorStorePage header"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "text": "Add a sortable 'Rating' column/option to VendorDirectoryPage so users can sort vendors by their average rating (highest-rated first), leveraging the existing sort controls and vendorDiscovery utility helpers.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Next part of Stage 11 please"
-        ]
-      },
-      "acceptanceCriteria": [
-        "VendorDirectoryPage sort controls include a 'Top Rated' or 'Rating' option alongside existing name/date sorts",
-        "Selecting 'Rating' sorts vendors descending by average rating",
-        "Sort option syncs to URL params consistent with existing sort param handling"
+        "A `useGetVendorRatingSummary(vendorId)` hook is exported from `useQueries.ts` and calls the backend `getVendorRatingSummary` function.",
+        "`VendorCard.tsx` uses the new hook instead of computing the rating summary from raw reviews.",
+        "`VendorStorePage.tsx` and `VendorReviewsSection.tsx` use the new hook for displaying rating summaries where applicable.",
+        "The hook handles loading and error states gracefully, showing a loading indicator or fallback UI while fetching."
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
-    "All Motoko logic must remain in the single backend/main.mo actor",
-    "Reuse existing review data structures and query patterns already established in the codebase"
+    "Do not modify any files listed under frontend.immutablePaths.",
+    "All backend logic must remain in the single `backend/main.mo` actor.",
+    "Only generate `backend/migration.mo` if the stable state shape changes and migration is required."
   ],
   "nonGoals": [
-    "Rebuilding or replacing the existing VendorReviewsSection review submission form",
-    "Adding moderation or flagging of reviews",
-    "Paginating reviews on the directory page"
+    "No new UI pages or layout changes beyond consuming the new rating summary hook.",
+    "No changes to the review submission flow.",
+    "No changes to how reviews are stored in the backend."
   ],
   "imageRequirements": {
     "required": [],

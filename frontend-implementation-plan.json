@@ -1,79 +1,37 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Stage 11 – Vendor Reviews & Ratings (Next Part)",
+  "title": "Stage 11 – Vendor Rating Summary Backend Query (AR-3)",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Display average rating on VendorCard/VendorDirectoryPage using existing review data",
-      "acceptanceCriteria": [
-        "Each vendor card in the VendorDirectoryPage displays an average star rating (1–5) computed from their reviews",
-        "If a vendor has no reviews, display a 'No reviews yet' indicator instead of a rating",
-        "Rating is visually represented with filled/empty stars or a numeric badge consistent with the existing design system"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/VendorCard.tsx",
-          "operation": "create",
-          "description": "Create a VendorCard component that displays vendor information (name, bio, categories) with an inline average rating badge. Use the useVendorRatingSummary hook to fetch rating data for the vendor's principal ID. Show star icons (filled/empty) or a numeric badge representing the average rating. If reviewCount is 0, display 'No reviews yet' text instead of stars. Keep styling consistent with the existing ProductCard and DAppCard components using Tailwind classes."
-        },
-        {
-          "path": "frontend/src/pages/VendorDirectoryPage.tsx",
-          "operation": "modify",
-          "description": "Replace the existing vendor list rendering to use the new VendorCard component for each vendor. Pass each vendor's data to VendorCard. Ensure the VendorCard is clickable and navigates to the vendor's store page. Maintain existing search, filter, and sort functionality. The VendorCard will handle rating display internally via its own hook calls."
-        }
-      ]
-    },
-    {
       "id": "REQ-2",
-      "summary": "Add average rating and review count to VendorStorePage header",
+      "summary": "Add useGetVendorRatingSummary hook and replace frontend rating aggregation in VendorCard, VendorStorePage, and VendorReviewsSection",
       "acceptanceCriteria": [
-        "VendorStorePage header/hero section shows the vendor's average star rating and total review count",
-        "Data is derived from the same reviews query already used by VendorReviewsSection",
-        "Display updates reactively when new reviews are submitted"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/VendorStorePage.tsx",
-          "operation": "modify",
-          "description": "Add the useVendorRatingSummary hook call at the top of the component, passing the vendorId from route params. In the vendor header/hero section (before the products grid), add a rating display element showing average star rating and review count (e.g., '4.5 ★ (23 reviews)'). Use star icons consistent with VendorCard. Ensure the rating display appears prominently near the vendor's display name and bio. The data will reactively update when React Query invalidates the rating summary query after new review submission."
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Expose getVendorRatingSummary backend query as useVendorRatingSummary React Query hook",
-      "acceptanceCriteria": [
-        "useVendorRatingSummary hook is added to frontend/src/hooks/useQueries.ts",
-        "Hook accepts a vendorId parameter and returns averageRating and reviewCount",
-        "Hook is consumed by VendorDirectoryPage vendor cards and VendorStorePage header"
+        "A `useGetVendorRatingSummary(vendorId)` hook is exported from `useQueries.ts` and calls the backend `getVendorRatingSummary` function.",
+        "`VendorCard.tsx` uses the new hook instead of computing the rating summary from raw reviews.",
+        "`VendorStorePage.tsx` and `VendorReviewsSection.tsx` use the new hook for displaying rating summaries where applicable.",
+        "The hook handles loading and error states gracefully, showing a loading indicator or fallback UI while fetching."
       ],
       "file_operations": [
         {
           "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Add a new useVendorRatingSummary hook that accepts vendorId (string) as parameter. Use React Query's useQuery with queryKey ['vendorRatingSummary', vendorId]. Call actor.getReviewsAggregate(vendorId) in the queryFn (the backend already provides this aggregate function). Return the averageRating and count fields from the ReviewsAggregate response. Enable the query only when actor is available and vendorId is non-empty. Set staleTime to 60000ms to allow caching across multiple vendor cards."
-        }
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "summary": "Add sortable 'Rating' option to VendorDirectoryPage sort controls",
-      "acceptanceCriteria": [
-        "VendorDirectoryPage sort controls include a 'Top Rated' or 'Rating' option alongside existing name/date sorts",
-        "Selecting 'Rating' sorts vendors descending by average rating",
-        "Sort option syncs to URL params consistent with existing sort param handling"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/utils/vendorDiscovery.ts",
-          "operation": "modify",
-          "description": "Add a new sort option 'rating' to the existing sortVendors utility function. For the rating sort, accept a Map<string, number> parameter containing vendorId-to-averageRating mappings. Sort vendors descending by their average rating (highest first). If a vendor has no rating in the map, treat it as 0. Keep existing 'name' and 'createdAt' sort logic unchanged. Export a type union for valid sort keys including 'rating'."
+          "description": "Add a new `useGetVendorRatingSummary(vendorId: Principal)` React Query hook that calls `actor.getVendorRatingSummary(vendorId)` and returns the VendorRatingSummary result with loading, error, and data state. Configure the query with a meaningful cache key and enable it only when actor is available and vendorId is provided."
         },
         {
-          "path": "frontend/src/pages/VendorDirectoryPage.tsx",
+          "path": "frontend/src/components/VendorCard.tsx",
           "operation": "modify",
-          "description": "Add 'Top Rated' to the sort dropdown options in the controls section. Read the sort param from URL using the existing urlParams utility. For each vendor, call useVendorRatingSummary to build a vendorId-to-rating map (handle this efficiently to avoid excessive hook calls; consider using a single aggregate query or useMemo). Pass the rating map to the sortVendors utility when sortBy is 'rating'. Update the URL param when the user selects 'Top Rated'. Ensure the sort dropdown reflects the current URL param on page load."
+          "description": "Replace the existing `useGetVendorReviews` hook and frontend aggregation logic with the new `useGetVendorRatingSummary(vendor.principalId)` hook. Update the component to display averageRating, totalReviews, and starBreakdown from the hook's data. Show a loading skeleton while the rating summary is being fetched, and display a fallback state (e.g., 'No ratings yet') when totalReviews is zero or data is unavailable."
+        },
+        {
+          "path": "frontend/src/pages/VendorStorePage.tsx",
+          "operation": "modify",
+          "description": "Replace any frontend-side rating aggregation with the new `useGetVendorRatingSummary(vendor.principalId)` hook. Update the rating summary display section to use averageRating, totalReviews, and starBreakdown from the hook's data. Handle loading state with a skeleton loader and show a fallback message when no ratings exist."
+        },
+        {
+          "path": "frontend/src/components/vendor/VendorReviewsSection.tsx",
+          "operation": "modify",
+          "description": "Integrate the new `useGetVendorRatingSummary(vendorId)` hook to display the rating summary (average rating, total reviews, and per-star breakdown) at the top of the reviews section. Remove any existing frontend aggregation logic that computes these statistics from raw review data. Display the summary with loading and empty states, and ensure it updates when a new review is submitted by invalidating the query."
         }
       ]
     }

@@ -4,7 +4,7 @@ import { useListPublicVendors } from '../hooks/useQueries';
 import { useCreateOrder, CreateOrderInput } from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import ProductCard from '../components/ProductCard';
-import OrderConfirmationDialog, { OrderConfirmationData } from '../components/OrderConfirmationDialog';
+import OrderConfirmationDialog from '../components/OrderConfirmationDialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, ShoppingBag, Store } from 'lucide-react';
 import { Product } from '@/backend';
 import { toast } from 'sonner';
+import type { OrderConfirmationData } from '../types';
 
 export default function ShopPage() {
   const { identity } = useInternetIdentity();
@@ -59,7 +60,6 @@ export default function ShopPage() {
         vendorId: product.vendorId,
         quantity,
         totalAmount,
-        product,
       };
       const order = await createOrder.mutateAsync(input);
       const vendorName = vendorMap.get(product.vendorId.toString()) ?? 'Unknown Vendor';
@@ -70,7 +70,7 @@ export default function ShopPage() {
         vendorName,
         quantity,
         totalAmount: order.totalAmount,
-        status: order.status,
+        status: String(order.status),
       });
       setConfirmationOpen(true);
     } catch (err: unknown) {

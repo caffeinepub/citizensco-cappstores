@@ -1,18 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
-import {
+import type {
   ProjectEntry,
   RewardCampaign,
-  UserProfile,
   Product,
   Order,
   OrderStatus,
+  UserProfile,
   Vendor,
-  StripeConfiguration,
   Review,
-  ReviewsAggregate,
+  VendorRatingSummary,
+  StripeConfiguration,
 } from '../backend';
-import { AnalyticsEntry } from '../types';
+import { AnalyticsEntry, Wallet } from '../types';
 import { Principal } from '@dfinity/principal';
 
 // ─── User Profile ────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ export function useGetAllAnalytics() {
 
   return useQuery<AnalyticsEntry[]>({
     queryKey: ['allAnalytics'],
-    queryFn: async () => {
+    queryFn: async (): Promise<AnalyticsEntry[]> => {
       if (!actor) return [];
       return [];
     },
@@ -167,6 +167,7 @@ export function useCreateRewardCampaign() {
 
   return useMutation({
     mutationFn: async (_campaign: RewardCampaign) => {
+      // stub — backend does not support creating campaigns via frontend yet
       throw new Error('Creating reward campaigns is not supported in the current backend version.');
     },
     onSuccess: () => {
@@ -212,13 +213,9 @@ export function useCompleteRewardCampaign() {
 export function useGetWallet() {
   const { actor, isFetching } = useActor();
 
-  return useQuery<{
-    icpBalance: bigint;
-    stripeBalance: bigint;
-    transactionHistory: Array<{ id: string; amount: bigint; type: string; timestamp: bigint }>;
-  }>({
+  return useQuery<Wallet>({
     queryKey: ['wallet'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Wallet> => {
       if (!actor) throw new Error('Actor not available');
       return {
         icpBalance: BigInt(0),
@@ -524,7 +521,6 @@ export interface CreateOrderInput {
   vendorId: Principal;
   quantity: number;
   totalAmount: bigint;
-  product: Product;
 }
 
 export function useCreateOrder() {
@@ -544,7 +540,7 @@ export function useCreateOrder() {
         productId: input.productId,
         quantity: BigInt(input.quantity),
         totalAmount: input.totalAmount,
-        status: OrderStatus.pending,
+        status: 'pending' as unknown as OrderStatus,
         createdAt: BigInt(Date.now() * 1_000_000),
       };
 
@@ -624,7 +620,7 @@ export function useVerifyVendor() {
 
 // ─── Vendor Reviews & Ratings ─────────────────────────────────────────────────
 
-export function useGetVendorReviews(vendorId: string) {
+export function useGetVendorReviews(vendorId: string | null) {
   const { actor, isFetching } = useActor();
 
   return useQuery<Review[]>({
@@ -637,7 +633,7 @@ export function useGetVendorReviews(vendorId: string) {
   });
 }
 
-export function useGetAverageRating(vendorId: string) {
+export function useGetAverageRating(vendorId: string | null) {
   const { actor, isFetching } = useActor();
 
   return useQuery<number>({
@@ -651,23 +647,26 @@ export function useGetAverageRating(vendorId: string) {
       }
     },
     enabled: !!actor && !isFetching && !!vendorId,
-    staleTime: 60000,
   });
 }
 
-export function useVendorRatingSummary(vendorId: string | null) {
+export function useGetVendorRatingSummary(vendorId: Principal | null) {
   const { actor, isFetching } = useActor();
 
-  return useQuery<ReviewsAggregate>({
-    queryKey: ['vendorRatingSummary', vendorId],
-    queryFn: async () => {
+  return useQuery<VendorRatingSummary>({
+    queryKey: ['vendorRatingSummary', vendorId?.toString()],
+    queryFn: async (): Promise<VendorRatingSummary> => {
       if (!actor || !vendorId) {
-        return { reviews: [], count: BigInt(0), averageRating: 0 };
+        return {
+          vendorId: undefined,
+          averageRating: 0,
+          totalReviews: BigInt(0),
+          starBreakdown: [BigInt(0), BigInt(0), BigInt(0), BigInt(0), BigInt(0)],
+        };
       }
-      return actor.getReviewsAggregate(vendorId);
+      return actor.getVendorRatingSummary(vendorId);
     },
     enabled: !!actor && !isFetching && !!vendorId,
-    staleTime: 60000,
   });
 }
 
@@ -688,14 +687,13 @@ export function useSubmitVendorReview() {
       if (!actor) throw new Error('Actor not available');
       const result = await actor.submitReview(vendorId, BigInt(rating), comment);
       if (result.__kind__ === 'err') {
-        throw new Error(result.err);
+        throw new Error((result as { __kind__: 'err'; err: string }).err);
       }
-      return result;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vendorReviews', variables.vendorId] });
+      queryClient.invalidateQueries({ queryKey: ['vendorRatingSummary'] });
       queryClient.invalidateQueries({ queryKey: ['averageRating', variables.vendorId] });
-      queryClient.invalidateQueries({ queryKey: ['vendorRatingSummary', variables.vendorId] });
     },
   });
 }

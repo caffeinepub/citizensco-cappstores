@@ -24,7 +24,7 @@ export interface RevenueShareConfig {
   createdAt: number;
 }
 
-// Wallet
+// Wallet transaction
 export interface WalletTransaction {
   id: string;
   amount: bigint;
@@ -32,6 +32,7 @@ export interface WalletTransaction {
   timestamp: bigint;
 }
 
+// Wallet
 export interface Wallet {
   icpBalance: bigint;
   stripeBalance: bigint;

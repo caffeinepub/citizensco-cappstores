@@ -7,11 +7,6 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface ReviewsAggregate {
-    reviews: Array<Review>;
-    count: bigint;
-    averageRating: number;
-}
 export interface Review {
     createdAt: bigint;
     comment: string;
@@ -81,6 +76,10 @@ export interface RewardCampaign {
     description: string;
     campaignType: RewardCampaignType;
 }
+export interface StripeConfiguration {
+    allowedCountries: Array<string>;
+    secretKey: string;
+}
 export type StripeSessionStatus = {
     __kind__: "completed";
     completed: {
@@ -93,10 +92,6 @@ export type StripeSessionStatus = {
         error: string;
     };
 };
-export interface StripeConfiguration {
-    allowedCountries: Array<string>;
-    secretKey: string;
-}
 export interface Vendor {
     bio: string;
     categories: Array<string>;
@@ -106,6 +101,12 @@ export interface Vendor {
     createdAt: bigint;
     vendorOwner: Principal;
     principalId: Principal;
+}
+export interface VendorRatingSummary {
+    averageRating: number;
+    starBreakdown: Array<bigint>;
+    vendorId?: Principal;
+    totalReviews: bigint;
 }
 export interface UserProfile {
     pendingRewardCampaigns: Array<string>;
@@ -160,10 +161,6 @@ export interface backendInterface {
         views: bigint;
     } | null>;
     getProjectsByOwner(owner: Principal): Promise<Array<ProjectEntry>>;
-    /**
-     * / Aggregate review data for a vendor.
-     */
-    getReviewsAggregate(vendorId: string): Promise<ReviewsAggregate>;
     getRewardCampaign(campaignId: string): Promise<RewardCampaign | null>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -171,6 +168,11 @@ export interface backendInterface {
     getVendor(vendorId: Principal): Promise<Vendor | null>;
     getVendorBalance(vendorId: Principal): Promise<bigint>;
     getVendorOrders(): Promise<Array<Order>>;
+    /**
+     * / Returns a rating summary for the given vendor, including average rating,
+     * / total number of reviews, and a breakdown of review counts per star level.
+     */
+    getVendorRatingSummary(vendorId: Principal): Promise<VendorRatingSummary>;
     /**
      * / Returns all reviews for a given vendorId (principalId as text for frontend compatibility).
      * / Read-only: accessible by anyone including guests.

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateRewardCampaign } from '../hooks/useQueries';
 import { RewardCampaignType } from '../backend';
+import type { RewardCampaign } from '../backend';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
@@ -37,23 +38,26 @@ export default function CreateRewardCampaignModal({ open, onClose }: CreateRewar
 
     const amountInE8s = BigInt(Math.floor(amount * 100000000));
 
+    const campaign: RewardCampaign = {
+      id: `campaign_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      name,
+      description,
+      campaignType,
+      rewardAmount: amountInE8s,
+      participants: [],
+    };
+
     try {
-      await createCampaign.mutateAsync({
-        id: `campaign_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        name,
-        description,
-        campaignType,
-        rewardAmount: amountInE8s,
-        participants: [],
-      });
+      await createCampaign.mutateAsync(campaign);
       toast.success('Reward campaign created successfully!');
       onClose();
       setName('');
       setDescription('');
       setRewardAmount('');
       setCampaignType(RewardCampaignType.reward);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create campaign');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to create campaign';
+      toast.error(msg);
     }
   };
 

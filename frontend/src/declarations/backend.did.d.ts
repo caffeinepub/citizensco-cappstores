@@ -51,11 +51,6 @@ export interface Review {
   'reviewId' : string,
   'authorPrincipal' : Principal,
 }
-export interface ReviewsAggregate {
-  'reviews' : Array<Review>,
-  'count' : bigint,
-  'averageRating' : number,
-}
 export interface RewardCampaign {
   'id' : string,
   'participants' : Array<Principal>,
@@ -118,6 +113,12 @@ export interface Vendor {
   'vendorOwner' : Principal,
   'principalId' : Principal,
 }
+export interface VendorRatingSummary {
+  'averageRating' : number,
+  'starBreakdown' : Array<bigint>,
+  'vendorId' : [] | [Principal],
+  'totalReviews' : bigint,
+}
 export interface _CaffeineStorageCreateCertificateResult {
   'method' : string,
   'blob_hash' : string,
@@ -176,10 +177,6 @@ export interface _SERVICE {
     [] | [{ 'clicks' : bigint, 'views' : bigint }]
   >,
   'getProjectsByOwner' : ActorMethod<[Principal], Array<ProjectEntry>>,
-  /**
-   * / Aggregate review data for a vendor.
-   */
-  'getReviewsAggregate' : ActorMethod<[string], ReviewsAggregate>,
   'getRewardCampaign' : ActorMethod<[string], [] | [RewardCampaign]>,
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
@@ -187,6 +184,11 @@ export interface _SERVICE {
   'getVendor' : ActorMethod<[Principal], [] | [Vendor]>,
   'getVendorBalance' : ActorMethod<[Principal], bigint>,
   'getVendorOrders' : ActorMethod<[], Array<Order>>,
+  /**
+   * / Returns a rating summary for the given vendor, including average rating,
+   * / total number of reviews, and a breakdown of review counts per star level.
+   */
+  'getVendorRatingSummary' : ActorMethod<[Principal], VendorRatingSummary>,
   /**
    * / Returns all reviews for a given vendorId (principalId as text for frontend compatibility).
    * / Read-only: accessible by anyone including guests.
