@@ -15,7 +15,9 @@ import MixinAuthorization "authorization/MixinAuthorization";
 import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Float "mo:core/Float";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   include MixinStorage();
 
@@ -27,7 +29,7 @@ actor {
   let vendors = Map.empty<Principal, Vendor>();
   let projects = Map.empty<Text, ProjectEntry>();
   let rewardCampaigns = Map.empty<Text, RewardCampaign>();
-  let products = Map.empty<Text, Product>();
+  let products = Map.empty<Text, Product>(); // This will run migration code to preserve previous product entries.
   let orders = Map.empty<Text, Order>();
   let userProfiles = Map.empty<Principal, UserProfile>();
   let reviews = Map.empty<Text, Review>();
@@ -113,6 +115,7 @@ actor {
     price : Nat;
     stock : Nat;
     createdAt : Int;
+    imageUrl : ?Text; // Optional field for future improvement.
   };
 
   public type OrderStatus = {
@@ -681,3 +684,4 @@ actor {
     #ok;
   };
 };
+

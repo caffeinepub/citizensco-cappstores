@@ -45,7 +45,23 @@ export default function ProductCard({
   };
 
   return (
-    <Card className="flex flex-col h-full border border-border/60 hover:border-primary/40 hover:shadow-md transition-all duration-200">
+    <Card className="flex flex-col h-full border border-border/60 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden">
+      {/* Product image zone */}
+      {product.imageUrl ? (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          data-ocid="product_card.image"
+          className="w-full h-40 object-cover"
+        />
+      ) : (
+        <div
+          data-ocid="product_card.image"
+          className="w-full h-40 bg-muted/40 flex items-center justify-center"
+        >
+          <Package className="h-10 w-10 text-muted-foreground/40" />
+        </div>
+      )}
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">

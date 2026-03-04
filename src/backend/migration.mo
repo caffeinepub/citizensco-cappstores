@@ -1,62 +1,44 @@
 import Map "mo:core/Map";
+import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
+import Text "mo:core/Text";
+import Int "mo:core/Int";
 
 module {
-  // Old Vendor type (no normalization)
-  type OldVendor = {
-    principalId : Principal;
-    vendorOwner : Principal;
-    displayName : Text;
-    bio : Text;
-    balance : Nat;
+  // Old type definitions (without the imageUrl field)
+  type OldProduct = {
+    id : Text;
+    vendorId : Principal;
+    name : Text;
+    description : Text;
+    price : Nat;
+    stock : Nat;
     createdAt : Int;
-    published : Bool;
-    categories : [Text];
   };
 
-  // Old Actor type
   type OldActor = {
-    vendors : Map.Map<Principal, OldVendor>;
+    products : Map.Map<Text, OldProduct>;
   };
 
-  // Helper function for category normalization
-  func normalizeCategory(category : Text) : Text {
-    let trimmed = category.trim(#char ' ');
-    trimmed.map(
-      func(c) {
-        if (c >= 'A' and c <= 'Z') {
-          Char.fromNat32(c.toNat32() + 32);
-        } else { c };
-      }
-    );
-  };
-
-  // New Vendor type with normalized categories
-  type NewVendor = {
-    principalId : Principal;
-    vendorOwner : Principal;
-    displayName : Text;
-    bio : Text;
-    balance : Nat;
+  // New type definitions (with imageUrl field)
+  type NewProduct = {
+    id : Text;
+    vendorId : Principal;
+    name : Text;
+    description : Text;
+    price : Nat;
+    stock : Nat;
     createdAt : Int;
-    published : Bool;
-    categories : [Text];
+    imageUrl : ?Text;
   };
 
-  // New Actor type
-  type NewActor = {
-    vendors : Map.Map<Principal, NewVendor>;
-  };
-
-  public func run(old : OldActor) : NewActor {
-    let newVendors = old.vendors.map<Principal, OldVendor, NewVendor>(
-      func(_id, oldVendor) {
-        {
-          oldVendor with
-          categories = oldVendor.categories.map(normalizeCategory);
-        };
+  // Migration function to add the imageUrl field with a default value
+  public func run(old : OldActor) : { products : Map.Map<Text, NewProduct> } {
+    let newProducts = old.products.map<Text, OldProduct, NewProduct>(
+      func(_id, oldProduct) {
+        { oldProduct with imageUrl = null };
       }
     );
-    { vendors = newVendors };
+    { products = newProducts };
   };
 };

@@ -20,6 +20,7 @@ export default function VendorProductCreateForm({
 }: VendorProductCreateFormProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
 
@@ -54,6 +55,7 @@ export default function VendorProductCreateForm({
       price: BigInt(Math.round(priceValue * 1e8)),
       stock: BigInt(stockValue),
       createdAt: BigInt(Date.now() * 1_000_000),
+      ...(imageUrl.trim() ? { imageUrl: imageUrl.trim() } : {}),
     };
 
     try {
@@ -61,6 +63,7 @@ export default function VendorProductCreateForm({
       toast.success("Product created successfully!");
       setName("");
       setDescription("");
+      setImageUrl("");
       setPrice("");
       setStock("");
       onSuccess?.();
@@ -95,6 +98,30 @@ export default function VendorProductCreateForm({
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
         />
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="product-image-url">Product Image URL (optional)</Label>
+        <Input
+          id="product-image-url"
+          data-ocid="product_form.image_url.input"
+          placeholder="https://example.com/image.jpg"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          type="url"
+        />
+        {imageUrl.trim() && (
+          <div className="mt-2 rounded-lg overflow-hidden border border-border/40 w-full h-28 bg-muted/20">
+            <img
+              src={imageUrl.trim()}
+              alt="Preview"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

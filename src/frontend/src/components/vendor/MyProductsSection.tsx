@@ -71,27 +71,43 @@ export default function MyProductsSection({
       {products.map((product: Product) => (
         <Card key={product.id} className="border border-border/60">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{product.name}</p>
-                <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
-                  {product.description}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-sm font-semibold text-primary">
-                  {(Number(product.price) / 1e8).toFixed(4)} ICP
-                </span>
-                <Badge
-                  variant={
-                    Number(product.stock) > 0 ? "secondary" : "destructive"
-                  }
-                  className="text-xs"
-                >
-                  {Number(product.stock) > 0
-                    ? `${product.stock.toString()} in stock`
-                    : "Out of stock"}
-                </Badge>
+            <div className="flex items-start gap-3">
+              {/* Thumbnail */}
+              {product.imageUrl ? (
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-12 h-12 rounded-lg object-cover shrink-0 border border-border/40"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-muted/40 flex items-center justify-center shrink-0 border border-border/40">
+                  <Package className="h-5 w-5 text-muted-foreground/40" />
+                </div>
+              )}
+
+              {/* Content */}
+              <div className="flex flex-1 items-start justify-between gap-3 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{product.name}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
+                    {product.description}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className="text-sm font-semibold text-primary">
+                    {(Number(product.price) / 1e8).toFixed(4)} ICP
+                  </span>
+                  <Badge
+                    variant={
+                      Number(product.stock) > 0 ? "secondary" : "destructive"
+                    }
+                    className="text-xs"
+                  >
+                    {Number(product.stock) > 0
+                      ? `${product.stock.toString()} in stock`
+                      : "Out of stock"}
+                  </Badge>
+                </div>
               </div>
             </div>
           </CardContent>

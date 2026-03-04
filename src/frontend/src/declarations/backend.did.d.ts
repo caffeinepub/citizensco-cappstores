@@ -31,6 +31,7 @@ export interface Product {
   'createdAt' : bigint,
   'description' : string,
   'stock' : bigint,
+  'imageUrl' : [] | [string],
   'vendorId' : Principal,
   'price' : bigint,
 }

@@ -37,6 +37,7 @@ export const Product = IDL.Record({
   'createdAt' : IDL.Int,
   'description' : IDL.Text,
   'stock' : IDL.Nat,
+  'imageUrl' : IDL.Opt(IDL.Text),
   'vendorId' : IDL.Principal,
   'price' : IDL.Nat,
 });
@@ -298,6 +299,7 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : IDL.Int,
     'description' : IDL.Text,
     'stock' : IDL.Nat,
+    'imageUrl' : IDL.Opt(IDL.Text),
     'vendorId' : IDL.Principal,
     'price' : IDL.Nat,
   });

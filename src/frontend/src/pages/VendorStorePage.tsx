@@ -248,11 +248,17 @@ export default function VendorStorePage() {
         {productsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {(["sk-1", "sk-2", "sk-3"] as const).map((id) => (
-              <div key={id} className="rounded-xl border border-border/60 p-5">
-                <Skeleton className="h-5 w-32 mb-2" />
-                <Skeleton className="h-4 w-full mb-1.5" />
-                <Skeleton className="h-4 w-3/4 mb-4" />
-                <Skeleton className="h-8 w-full" />
+              <div
+                key={id}
+                className="rounded-xl border border-border/60 overflow-hidden"
+              >
+                <Skeleton className="h-40 w-full rounded-none" />
+                <div className="p-5">
+                  <Skeleton className="h-5 w-32 mb-2" />
+                  <Skeleton className="h-4 w-full mb-1.5" />
+                  <Skeleton className="h-4 w-3/4 mb-4" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
               </div>
             ))}
           </div>
