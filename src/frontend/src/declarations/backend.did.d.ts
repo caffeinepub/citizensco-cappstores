@@ -43,6 +43,14 @@ export interface ProjectEntry {
   'createdAt' : bigint,
   'description' : string,
 }
+export interface Review {
+  'createdAt' : bigint,
+  'comment' : string,
+  'vendorId' : string,
+  'rating' : bigint,
+  'reviewId' : string,
+  'authorPrincipal' : Principal,
+}
 export interface RewardCampaign {
   'id' : string,
   'participants' : Array<Principal>,
@@ -87,6 +95,7 @@ export interface TransformationOutput {
   'headers' : Array<http_header>,
 }
 export interface UserProfile {
+  'pendingRewardCampaigns' : Array<string>,
   'name' : string,
   'createdAt' : bigint,
   'email' : [] | [string],
@@ -103,6 +112,12 @@ export interface Vendor {
   'createdAt' : bigint,
   'vendorOwner' : Principal,
   'principalId' : Principal,
+}
+export interface VendorRatingSummary {
+  'averageRating' : number,
+  'starBreakdown' : Array<bigint>,
+  'vendorId' : [] | [Principal],
+  'totalReviews' : bigint,
 }
 export interface _CaffeineStorageCreateCertificateResult {
   'method' : string,
@@ -138,48 +153,70 @@ export interface _SERVICE {
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  'addProjectEntry' : ActorMethod<[ProjectEntry], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  'completeRewardCampaign' : ActorMethod<[string], undefined>,
   'createCheckoutSession' : ActorMethod<
     [Array<ShoppingItem>, string, string],
     string
   >,
-  'createOrder' : ActorMethod<[Order], undefined>,
   'createProduct' : ActorMethod<[Product], undefined>,
-  'createRewardCampaign' : ActorMethod<[RewardCampaign], undefined>,
+  'createProject' : ActorMethod<[ProjectEntry], undefined>,
+  'createUserProfile' : ActorMethod<[UserProfile], undefined>,
   'createVendor' : ActorMethod<[string, string, Array<string>], undefined>,
+  'finishOnboarding' : ActorMethod<[], undefined>,
+  /**
+   * / Returns the average rating for a given vendorId (principalId as Text).
+   * / Read-only: accessible by anyone including guests.
+   */
+  'getAverageRating' : ActorMethod<[string], number>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  'getCampaignsState' : ActorMethod<
-    [],
-    { 'users' : Array<UserProfile>, 'campaigns' : Array<RewardCampaign> }
-  >,
   'getOrder' : ActorMethod<[string], [] | [Order]>,
+  'getProject' : ActorMethod<[string], [] | [ProjectEntry]>,
   'getProjectAnalytics' : ActorMethod<
     [string],
     [] | [{ 'clicks' : bigint, 'views' : bigint }]
   >,
-  'getPublicVendor' : ActorMethod<[Principal], [] | [Vendor]>,
-  'getRewardCampaignsSample' : ActorMethod<[], Array<RewardCampaign>>,
+  'getProjectsByOwner' : ActorMethod<[Principal], Array<ProjectEntry>>,
+  'getRewardCampaign' : ActorMethod<[string], [] | [RewardCampaign]>,
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getUserRole' : ActorMethod<[Principal], UserRole>,
   'getVendor' : ActorMethod<[Principal], [] | [Vendor]>,
   'getVendorBalance' : ActorMethod<[Principal], bigint>,
   'getVendorOrders' : ActorMethod<[], Array<Order>>,
+  /**
+   * / Returns a rating summary for the given vendor, including average rating,
+   * / total number of reviews, and a breakdown of review counts per star level.
+   */
+  'getVendorRatingSummary' : ActorMethod<[Principal], VendorRatingSummary>,
+  /**
+   * / Returns all reviews for a given vendorId (principalId as text for frontend compatibility).
+   * / Read-only: accessible by anyone including guests.
+   */
+  'getVendorReviews' : ActorMethod<[string], Array<Review>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isStripeConfigured' : ActorMethod<[], boolean>,
-  'joinRewardCampaign' : ActorMethod<[string], undefined>,
+  'listAllUnpublishedVendors' : ActorMethod<[], Array<Vendor>>,
+  'listAllVendorsQuery' : ActorMethod<[], Array<Vendor>>,
   'listOrders' : ActorMethod<[], Array<Order>>,
+  'listProductStockByVendorId' : ActorMethod<[Principal], Array<Product>>,
   'listProducts' : ActorMethod<[], Array<Product>>,
-  'listProjectEntries' : ActorMethod<[], Array<ProjectEntry>>,
   'listPublicVendors' : ActorMethod<[], Array<Vendor>>,
   'listPublicVendorsByCategory' : ActorMethod<[string], Array<Vendor>>,
+  'listRewardCampaigns' : ActorMethod<[], Array<RewardCampaign>>,
   'publishVendor' : ActorMethod<[], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'searchCategory' : ActorMethod<[string], Array<Vendor>>,
   'setStripeConfiguration' : ActorMethod<[StripeConfiguration], undefined>,
-  'trackProjectClick' : ActorMethod<[string], undefined>,
-  'trackProjectView' : ActorMethod<[string], undefined>,
+  /**
+   * / Creates a new review for the calling principal.
+   * / Only authenticated users (#user role) may submit reviews.
+   */
+  'submitReview' : ActorMethod<
+    [string, bigint, string],
+    { 'ok' : null } |
+      { 'err' : string }
+  >,
   'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
   'unpublishVendor' : ActorMethod<[], undefined>,
   'updateOrderStatus' : ActorMethod<[string, OrderStatus], undefined>,
@@ -188,6 +225,7 @@ export interface _SERVICE {
     [string, string, Array<string>],
     undefined
   >,
+  'verifyVendor' : ActorMethod<[Principal], undefined>,
   'withdrawVendorBalance' : ActorMethod<[bigint], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

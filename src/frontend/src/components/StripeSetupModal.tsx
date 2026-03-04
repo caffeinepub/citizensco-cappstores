@@ -1,90 +1,132 @@
-import { useState, useEffect } from 'react';
-import { useIsCallerAdmin, useIsStripeConfigured, useSetStripeConfiguration } from '../hooks/useQueries';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  useIsCallerAdmin,
+  useIsStripeConfigured,
+  useSetStripeConfiguration,
+} from "../hooks/useQueries";
 
+/**
+ * Self-contained Stripe setup modal — auto-opens for admins when Stripe is not yet configured.
+ * No props required; manages its own open/close state.
+ */
 export default function StripeSetupModal() {
-  const { data: isAdmin } = useIsCallerAdmin();
-  const { data: isConfigured, isLoading } = useIsStripeConfigured();
-  const setConfig = useSetStripeConfiguration();
   const [open, setOpen] = useState(false);
-  const [secretKey, setSecretKey] = useState('');
-  const [countries, setCountries] = useState('US,CA,GB,EU');
+  const [secretKey, setSecretKey] = useState("");
+  const [countries, setCountries] = useState("US, CA, GB");
 
+  const { data: isAdmin } = useIsCallerAdmin();
+  const { data: isConfigured, isLoading: configLoading } =
+    useIsStripeConfigured();
+  const setConfig = useSetStripeConfiguration();
+
+  // Auto-open for admins when Stripe is not configured
   useEffect(() => {
-    if (isAdmin && !isLoading && isConfigured === false) {
+    if (isAdmin && !configLoading && isConfigured === false) {
       setOpen(true);
     }
-  }, [isAdmin, isConfigured, isLoading]);
+  }, [isAdmin, isConfigured, configLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!secretKey.trim()) {
-      toast.error('Please enter your Stripe secret key');
+      toast.error("Stripe secret key is required");
       return;
     }
 
-    const allowedCountries = countries.split(',').map(c => c.trim()).filter(c => c);
+    const allowedCountries = countries
+      .split(",")
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
     if (allowedCountries.length === 0) {
-      toast.error('Please enter at least one country code');
+      toast.error("At least one allowed country is required");
       return;
     }
 
     try {
-      await setConfig.mutateAsync({ secretKey: secretKey.trim(), allowedCountries });
-      toast.success('Stripe configured successfully!');
+      await setConfig.mutateAsync({
+        secretKey: secretKey.trim(),
+        allowedCountries,
+      });
+      toast.success("Stripe configuration saved successfully");
       setOpen(false);
-    } catch (error) {
-      toast.error('Failed to configure Stripe');
-      console.error(error);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to save Stripe configuration";
+      toast.error(msg);
     }
   };
 
-  if (!isAdmin || isConfigured) return null;
+  if (!isAdmin) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Configure Stripe Payment</DialogTitle>
+          <DialogTitle>Configure Stripe Payments</DialogTitle>
           <DialogDescription>
-            Set up Stripe to enable payment processing for the marketplace.
+            Set up Stripe to enable payment processing on the platform.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="secretKey">Stripe Secret Key</Label>
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <div className="space-y-1">
+            <Label htmlFor="stripe-secret-key">
+              Secret Key <span className="text-destructive">*</span>
+            </Label>
             <Input
-              id="secretKey"
+              id="stripe-secret-key"
               type="password"
-              placeholder="sk_test_..."
+              placeholder="sk_live_... or sk_test_..."
               value={secretKey}
               onChange={(e) => setSecretKey(e.target.value)}
+              className="font-mono text-sm"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="countries">Allowed Countries (comma-separated)</Label>
+
+          <div className="space-y-1">
+            <Label htmlFor="stripe-countries">
+              Allowed Countries <span className="text-destructive">*</span>
+            </Label>
             <Input
-              id="countries"
-              placeholder="US,CA,GB,EU"
+              id="stripe-countries"
+              placeholder="US, CA, GB, AU"
               value={countries}
               onChange={(e) => setCountries(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Example: US, CA, GB, EU
+              Comma-separated ISO country codes (e.g. US, CA, GB)
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button type="submit" className="flex-1" disabled={setConfig.isPending}>
-              {setConfig.isPending ? 'Configuring...' : 'Configure Stripe'}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              Skip for now
             </Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Skip
+            <Button type="submit" disabled={setConfig.isPending}>
+              {setConfig.isPending ? "Saving…" : "Save Configuration"}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

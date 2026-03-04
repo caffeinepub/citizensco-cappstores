@@ -1,80 +1,98 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetProjectEntries, useIsCallerAdmin, useTrackProjectView, useGetAllAnalytics, useGetCallerUserProfile } from '../hooks/useQueries';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, ExternalLink, TrendingUp, Star, BarChart3, ArrowUpDown } from 'lucide-react';
-import DAppCard from '../components/DAppCard';
-import AddDAppModal from '../components/AddDAppModal';
-import AdminPanel from '../components/AdminPanel';
-import HeroSection from '../components/HeroSection';
-import FeaturesSection from '../components/FeaturesSection';
-import RecommendationsPanel from '../components/RecommendationsPanel';
-import ProfileSetupModal from '../components/ProfileSetupModal';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowUpDown,
+  BarChart3,
+  Plus,
+  Search,
+  Star,
+  TrendingUp,
+} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import AddDAppModal from "../components/AddDAppModal";
+import AdminPanel from "../components/AdminPanel";
+import DAppCard from "../components/DAppCard";
+import FeaturesSection from "../components/FeaturesSection";
+import HeroSection from "../components/HeroSection";
+import ProfileSetupModal from "../components/ProfileSetupModal";
+import RecommendationsPanel from "../components/RecommendationsPanel";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useGetAllAnalytics,
+  useGetCallerUserProfile,
+  useGetProjectEntries,
+  useIsCallerAdmin,
+  useTrackProjectView,
+} from "../hooks/useQueries";
 
-type SortOption = 'name-asc' | 'name-desc' | 'newest';
+type SortOption = "name-asc" | "name-desc" | "newest";
 
 export default function MarketplacePage() {
   const { identity } = useInternetIdentity();
-  const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
+  const { data: isAdmin } = useIsCallerAdmin();
   const { data: projectEntries = [], isLoading } = useGetProjectEntries();
   const { data: analytics = [] } = useGetAllAnalytics();
-  const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
+  const {
+    data: userProfile,
+    isLoading: profileLoading,
+    isFetched,
+  } = useGetCallerUserProfile();
   const trackView = useTrackProjectView();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("name-asc");
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [trackedViews, setTrackedViews] = useState<Set<string>>(new Set());
 
   const isAuthenticated = !!identity;
-  // Only show profile setup when authenticated, actor is ready, query has fetched, and profile is null
-  const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
+  const showProfileSetup =
+    isAuthenticated && !profileLoading && isFetched && userProfile === null;
 
-  // Track view for a project (only once per session)
-  const handleTrackView = useCallback((projectId: string) => {
-    if (!trackedViews.has(projectId)) {
-      trackView.mutate(projectId);
-      setTrackedViews(prev => new Set(prev).add(projectId));
-    }
-  }, [trackedViews, trackView]);
+  const handleTrackView = useCallback(
+    (projectId: string) => {
+      if (!trackedViews.has(projectId)) {
+        trackView.mutate(projectId);
+        setTrackedViews((prev) => new Set(prev).add(projectId));
+      }
+    },
+    [trackedViews, trackView],
+  );
 
-  // Filter and sort projects
   const filteredAndSortedProjects = useMemo(() => {
-    let filtered = projectEntries.filter(entry => {
-      const matchesSearch = entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           entry.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSearch;
-    });
+    const filtered = projectEntries.filter(
+      (entry) =>
+        entry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.description.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
 
-    // Sort projects
-    const sorted = [...filtered].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       switch (sortBy) {
-        case 'name-asc':
+        case "name-asc":
           return a.name.localeCompare(b.name);
-        case 'name-desc':
+        case "name-desc":
           return b.name.localeCompare(a.name);
-        case 'newest':
-          // Assuming newer entries have higher IDs (simple heuristic)
+        case "newest":
           return b.id.localeCompare(a.id);
         default:
           return 0;
       }
     });
-
-    return sorted;
   }, [projectEntries, searchQuery, sortBy]);
-
-  // Check if admin panel should be shown
-  useMemo(() => {
-    if (window.location.hash === '#admin' && isAdmin) {
-      setShowAdmin(true);
-    }
-  }, [isAdmin]);
 
   if (!isAuthenticated) {
     return (
@@ -84,14 +102,18 @@ export default function MarketplacePage() {
         <div className="container py-16">
           <Card className="max-w-2xl mx-auto text-center">
             <CardHeader>
-              <CardTitle className="text-2xl">Welcome to CitizensCo CAppStores</CardTitle>
+              <CardTitle className="text-2xl">
+                Welcome to CitizensCo CAppStores
+              </CardTitle>
               <CardDescription>
-                Please log in to explore the decentralized DApp marketplace and discover amazing Web3 applications.
+                Please log in to explore the decentralized DApp marketplace and
+                discover amazing Web3 applications.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground mb-6">
-                Access thousands of DApps, track analytics, and participate in the Web3 ecosystem.
+                Access thousands of DApps, track analytics, and participate in
+                the Web3 ecosystem.
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
                 <div className="flex items-center gap-2 text-sm">
@@ -124,7 +146,9 @@ export default function MarketplacePage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-4xl font-bold mb-2">DApp Marketplace</h1>
-            <p className="text-muted-foreground">Discover and explore decentralized applications</p>
+            <p className="text-muted-foreground">
+              Discover and explore decentralized applications
+            </p>
           </div>
           <div className="flex gap-2">
             {isAdmin && (
@@ -163,7 +187,10 @@ export default function MarketplacePage() {
                   className="pl-10"
                 />
               </div>
-              <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+              <Select
+                value={sortBy}
+                onValueChange={(value) => setSortBy(value as SortOption)}
+              >
                 <SelectTrigger className="w-full md:w-[200px]">
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Sort by" />
@@ -191,7 +218,9 @@ export default function MarketplacePage() {
             <Search className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <CardTitle className="mb-2">No DApps Found</CardTitle>
             <p className="text-muted-foreground">
-              {searchQuery ? 'Try adjusting your search query' : 'No DApps available yet'}
+              {searchQuery
+                ? "Try adjusting your search query"
+                : "No DApps available yet"}
             </p>
           </CardContent>
         </Card>
@@ -204,8 +233,13 @@ export default function MarketplacePage() {
       )}
 
       {/* Modals */}
-      <AddDAppModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
-      {showProfileSetup && <ProfileSetupModal />}
+      <AddDAppModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+      />
+      {showProfileSetup && (
+        <ProfileSetupModal open={showProfileSetup} onComplete={() => {}} />
+      )}
     </div>
   );
 }

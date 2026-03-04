@@ -1,21 +1,27 @@
-import { useInternetIdentity } from './hooks/useInternetIdentity';
-import { ThemeProvider } from 'next-themes';
-import { Toaster } from '@/components/ui/sonner';
-import { createRouter, RouterProvider, createRoute, createRootRoute, Outlet } from '@tanstack/react-router';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import StripeSetupModal from './components/StripeSetupModal';
-import MarketplacePage from './pages/MarketplacePage';
-import WalletPage from './pages/WalletPage';
-import RewardsPage from './pages/RewardsPage';
-import DiscoveryHubPage from './pages/DiscoveryHubPage';
-import GlobalDashboardPage from './pages/GlobalDashboardPage';
-import AdminPanel from './components/AdminPanel';
-import ShopPage from './pages/ShopPage';
-import OrdersPage from './pages/OrdersPage';
-import VendorPage from './pages/VendorPage';
-import VendorDirectoryPage from './pages/VendorDirectoryPage';
-import VendorStorePage from './pages/VendorStorePage';
+import { Toaster } from "@/components/ui/sonner";
+import {
+  Outlet,
+  RouterProvider,
+  createRootRoute,
+  createRoute,
+  createRouter,
+} from "@tanstack/react-router";
+import { ThemeProvider } from "next-themes";
+import AdminPanel from "./components/AdminPanel";
+import Footer from "./components/Footer";
+import Header from "./components/Header";
+import StripeSetupModal from "./components/StripeSetupModal";
+import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import DiscoveryHubPage from "./pages/DiscoveryHubPage";
+import GlobalDashboardPage from "./pages/GlobalDashboardPage";
+import MarketplacePage from "./pages/MarketplacePage";
+import OrdersPage from "./pages/OrdersPage";
+import RewardsPage from "./pages/RewardsPage";
+import ShopPage from "./pages/ShopPage";
+import VendorDirectoryPage from "./pages/VendorDirectoryPage";
+import VendorPage from "./pages/VendorPage";
+import VendorStorePage from "./pages/VendorStorePage";
+import WalletPage from "./pages/WalletPage";
 
 // Layout component with Header and Footer
 function Layout() {
@@ -26,6 +32,7 @@ function Layout() {
         <Outlet />
       </main>
       <Footer />
+      {/* StripeSetupModal is self-contained — manages its own open state */}
       <StripeSetupModal />
       <Toaster />
     </div>
@@ -33,73 +40,71 @@ function Layout() {
 }
 
 // Define routes
-const rootRoute = createRootRoute({
-  component: Layout,
-});
+const rootRoute = createRootRoute({ component: Layout });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/',
+  path: "/",
   component: MarketplacePage,
 });
 
 const walletRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/wallet',
+  path: "/wallet",
   component: WalletPage,
 });
 
 const rewardsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/rewards',
+  path: "/rewards",
   component: RewardsPage,
 });
 
 const discoveryRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/discovery',
+  path: "/discovery",
   component: DiscoveryHubPage,
 });
 
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/dashboard',
+  path: "/dashboard",
   component: GlobalDashboardPage,
 });
 
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/admin',
+  path: "/admin",
   component: () => <AdminPanel onClose={() => window.history.back()} />,
 });
 
 const shopRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/shop',
+  path: "/shop",
   component: ShopPage,
 });
 
 const ordersRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/orders',
+  path: "/orders",
   component: OrdersPage,
 });
 
 const vendorRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/vendor',
+  path: "/vendor",
   component: VendorPage,
 });
 
 const vendorsDirectoryRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/vendors',
+  path: "/vendors",
   component: VendorDirectoryPage,
 });
 
 const vendorStoreRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/vendors/$vendorId',
+  path: "/vendors/$vendorId",
   component: VendorStorePage,
 });
 

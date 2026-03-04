@@ -1,6 +1,12 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, Package } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { CheckCircle2, Circle, Package } from "lucide-react";
 
 interface VendorOnboardingProps {
   hasVendor: boolean;
@@ -8,23 +14,27 @@ interface VendorOnboardingProps {
   onScrollToProductForm: () => void;
 }
 
-export default function VendorOnboarding({ hasVendor, hasProducts, onScrollToProductForm }: VendorOnboardingProps) {
+export default function VendorOnboarding({
+  hasVendor,
+  hasProducts,
+  onScrollToProductForm,
+}: VendorOnboardingProps) {
   const steps = [
     {
-      id: 'vendor',
-      title: 'Create Vendor Account',
-      description: 'Set up your vendor profile',
+      id: "vendor",
+      title: "Create Vendor Account",
+      description: "Set up your vendor profile",
       completed: hasVendor,
     },
     {
-      id: 'product',
-      title: 'Add Your First Product',
-      description: 'List a product to start selling',
+      id: "product",
+      title: "Add Your First Product",
+      description: "List a product to start selling",
       completed: hasProducts,
     },
   ];
 
-  const currentStep = steps.findIndex(step => !step.completed);
+  const currentStep = steps.findIndex((step) => !step.completed);
   const allComplete = currentStep === -1;
 
   if (allComplete) {
@@ -60,12 +70,16 @@ export default function VendorOnboarding({ hasVendor, hasProducts, onScrollToPro
                 <h3 className="font-semibold text-base mb-1">
                   {index + 1}. {step.title}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-3">{step.description}</p>
-                {!step.completed && index === currentStep && step.id === 'product' && (
-                  <Button onClick={onScrollToProductForm} size="sm">
-                    Add Product
-                  </Button>
-                )}
+                <p className="text-sm text-muted-foreground mb-3">
+                  {step.description}
+                </p>
+                {!step.completed &&
+                  index === currentStep &&
+                  step.id === "product" && (
+                    <Button onClick={onScrollToProductForm} size="sm">
+                      Add Product
+                    </Button>
+                  )}
               </div>
             </div>
           ))}

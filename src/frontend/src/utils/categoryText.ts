@@ -8,7 +8,7 @@
  * Trims whitespace and collapses multiple spaces into single spaces
  */
 export function normalizeCategoryDisplay(text: string): string {
-  return text.trim().replace(/\s+/g, ' ');
+  return text.trim().replace(/\s+/g, " ");
 }
 
 /**
@@ -16,7 +16,7 @@ export function normalizeCategoryDisplay(text: string): string {
  * Used to detect duplicates and match categories
  */
 export function getCategoryComparisonKey(text: string): string {
-  return text.toLowerCase().trim().replace(/\s+/g, ' ');
+  return text.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
 /**
@@ -32,17 +32,20 @@ export function areCategoriesEqual(cat1: string, cat2: string): boolean {
  */
 export function parseCommaSeparatedCategories(input: string): string[] {
   return input
-    .split(',')
-    .map(cat => normalizeCategoryDisplay(cat))
-    .filter(cat => cat.length > 0);
+    .split(",")
+    .map((cat) => normalizeCategoryDisplay(cat))
+    .filter((cat) => cat.length > 0);
 }
 
 /**
  * Check if a category already exists in a list (case-insensitive, whitespace-normalized)
  */
-export function categoryExistsInList(category: string, list: string[]): boolean {
+export function categoryExistsInList(
+  category: string,
+  list: string[],
+): boolean {
   const key = getCategoryComparisonKey(category);
-  return list.some(existing => getCategoryComparisonKey(existing) === key);
+  return list.some((existing) => getCategoryComparisonKey(existing) === key);
 }
 
 /**
@@ -51,13 +54,15 @@ export function categoryExistsInList(category: string, list: string[]): boolean 
 export function filterCategorySuggestions(
   suggestions: string[],
   inputText: string,
-  maxResults: number = 10
+  maxResults = 10,
 ): string[] {
   if (!inputText.trim()) return suggestions.slice(0, maxResults);
-  
+
   const searchKey = getCategoryComparisonKey(inputText);
-  
+
   return suggestions
-    .filter(suggestion => getCategoryComparisonKey(suggestion).includes(searchKey))
+    .filter((suggestion) =>
+      getCategoryComparisonKey(suggestion).includes(searchKey),
+    )
     .slice(0, maxResults);
 }

@@ -19,15 +19,6 @@ export const _CaffeineStorageRefillResult = IDL.Record({
   'success' : IDL.Opt(IDL.Bool),
   'topped_up_amount' : IDL.Opt(IDL.Nat),
 });
-export const ProjectEntry = IDL.Record({
-  'id' : IDL.Text,
-  'clicks' : IDL.Nat,
-  'views' : IDL.Nat,
-  'owner' : IDL.Principal,
-  'name' : IDL.Text,
-  'createdAt' : IDL.Int,
-  'description' : IDL.Text,
-});
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
@@ -39,6 +30,30 @@ export const ShoppingItem = IDL.Record({
   'quantity' : IDL.Nat,
   'priceInCents' : IDL.Nat,
   'productDescription' : IDL.Text,
+});
+export const Product = IDL.Record({
+  'id' : IDL.Text,
+  'name' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'description' : IDL.Text,
+  'stock' : IDL.Nat,
+  'vendorId' : IDL.Principal,
+  'price' : IDL.Nat,
+});
+export const ProjectEntry = IDL.Record({
+  'id' : IDL.Text,
+  'clicks' : IDL.Nat,
+  'views' : IDL.Nat,
+  'owner' : IDL.Principal,
+  'name' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'description' : IDL.Text,
+});
+export const UserProfile = IDL.Record({
+  'pendingRewardCampaigns' : IDL.Vec(IDL.Text),
+  'name' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'email' : IDL.Opt(IDL.Text),
 });
 export const OrderStatus = IDL.Variant({
   'shipped' : IDL.Null,
@@ -56,15 +71,6 @@ export const Order = IDL.Record({
   'vendorId' : IDL.Principal,
   'quantity' : IDL.Nat,
   'customerId' : IDL.Principal,
-});
-export const Product = IDL.Record({
-  'id' : IDL.Text,
-  'name' : IDL.Text,
-  'createdAt' : IDL.Int,
-  'description' : IDL.Text,
-  'stock' : IDL.Nat,
-  'vendorId' : IDL.Principal,
-  'price' : IDL.Nat,
 });
 export const RewardCampaignType = IDL.Variant({
   'reward' : IDL.Null,
@@ -87,10 +93,12 @@ export const RewardCampaign = IDL.Record({
   'description' : IDL.Text,
   'campaignType' : RewardCampaignType,
 });
-export const UserProfile = IDL.Record({
-  'name' : IDL.Text,
-  'createdAt' : IDL.Int,
-  'email' : IDL.Opt(IDL.Text),
+export const StripeSessionStatus = IDL.Variant({
+  'completed' : IDL.Record({
+    'userPrincipal' : IDL.Opt(IDL.Text),
+    'response' : IDL.Text,
+  }),
+  'failed' : IDL.Record({ 'error' : IDL.Text }),
 });
 export const Vendor = IDL.Record({
   'bio' : IDL.Text,
@@ -102,12 +110,19 @@ export const Vendor = IDL.Record({
   'vendorOwner' : IDL.Principal,
   'principalId' : IDL.Principal,
 });
-export const StripeSessionStatus = IDL.Variant({
-  'completed' : IDL.Record({
-    'userPrincipal' : IDL.Opt(IDL.Text),
-    'response' : IDL.Text,
-  }),
-  'failed' : IDL.Record({ 'error' : IDL.Text }),
+export const VendorRatingSummary = IDL.Record({
+  'averageRating' : IDL.Float64,
+  'starBreakdown' : IDL.Vec(IDL.Nat),
+  'vendorId' : IDL.Opt(IDL.Principal),
+  'totalReviews' : IDL.Nat,
+});
+export const Review = IDL.Record({
+  'createdAt' : IDL.Int,
+  'comment' : IDL.Text,
+  'vendorId' : IDL.Text,
+  'rating' : IDL.Nat,
+  'reviewId' : IDL.Text,
+  'authorPrincipal' : IDL.Principal,
 });
 export const StripeConfiguration = IDL.Record({
   'allowedCountries' : IDL.Vec(IDL.Text),
@@ -160,40 +175,35 @@ export const idlService = IDL.Service({
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-  'addProjectEntry' : IDL.Func([ProjectEntry], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
-  'completeRewardCampaign' : IDL.Func([IDL.Text], [], []),
   'createCheckoutSession' : IDL.Func(
       [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
       [IDL.Text],
       [],
     ),
-  'createOrder' : IDL.Func([Order], [], []),
   'createProduct' : IDL.Func([Product], [], []),
-  'createRewardCampaign' : IDL.Func([RewardCampaign], [], []),
+  'createProject' : IDL.Func([ProjectEntry], [], []),
+  'createUserProfile' : IDL.Func([UserProfile], [], []),
   'createVendor' : IDL.Func([IDL.Text, IDL.Text, IDL.Vec(IDL.Text)], [], []),
+  'finishOnboarding' : IDL.Func([], [], []),
+  'getAverageRating' : IDL.Func([IDL.Text], [IDL.Float64], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-  'getCampaignsState' : IDL.Func(
-      [],
-      [
-        IDL.Record({
-          'users' : IDL.Vec(UserProfile),
-          'campaigns' : IDL.Vec(RewardCampaign),
-        }),
-      ],
-      ['query'],
-    ),
   'getOrder' : IDL.Func([IDL.Text], [IDL.Opt(Order)], ['query']),
+  'getProject' : IDL.Func([IDL.Text], [IDL.Opt(ProjectEntry)], ['query']),
   'getProjectAnalytics' : IDL.Func(
       [IDL.Text],
       [IDL.Opt(IDL.Record({ 'clicks' : IDL.Nat, 'views' : IDL.Nat }))],
       ['query'],
     ),
-  'getPublicVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
-  'getRewardCampaignsSample' : IDL.Func(
-      [],
-      [IDL.Vec(RewardCampaign)],
+  'getProjectsByOwner' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(ProjectEntry)],
+      ['query'],
+    ),
+  'getRewardCampaign' : IDL.Func(
+      [IDL.Text],
+      [IDL.Opt(RewardCampaign)],
       ['query'],
     ),
   'getStripeSessionStatus' : IDL.Func([IDL.Text], [StripeSessionStatus], []),
@@ -202,26 +212,43 @@ export const idlService = IDL.Service({
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
+  'getUserRole' : IDL.Func([IDL.Principal], [UserRole], ['query']),
   'getVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
   'getVendorBalance' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
   'getVendorOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'getVendorRatingSummary' : IDL.Func(
+      [IDL.Principal],
+      [VendorRatingSummary],
+      ['query'],
+    ),
+  'getVendorReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
-  'joinRewardCampaign' : IDL.Func([IDL.Text], [], []),
+  'listAllUnpublishedVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
+  'listAllVendorsQuery' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
   'listOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'listProductStockByVendorId' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(Product)],
+      ['query'],
+    ),
   'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-  'listProjectEntries' : IDL.Func([], [IDL.Vec(ProjectEntry)], ['query']),
   'listPublicVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
   'listPublicVendorsByCategory' : IDL.Func(
       [IDL.Text],
       [IDL.Vec(Vendor)],
       ['query'],
     ),
+  'listRewardCampaigns' : IDL.Func([], [IDL.Vec(RewardCampaign)], ['query']),
   'publishVendor' : IDL.Func([], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'searchCategory' : IDL.Func([IDL.Text], [IDL.Vec(Vendor)], ['query']),
   'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
-  'trackProjectClick' : IDL.Func([IDL.Text], [], []),
-  'trackProjectView' : IDL.Func([IDL.Text], [], []),
+  'submitReview' : IDL.Func(
+      [IDL.Text, IDL.Nat, IDL.Text],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+      [],
+    ),
   'transform' : IDL.Func(
       [TransformationInput],
       [TransformationOutput],
@@ -235,6 +262,7 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'verifyVendor' : IDL.Func([IDL.Principal], [], []),
   'withdrawVendorBalance' : IDL.Func([IDL.Nat], [], []),
 });
 
@@ -252,15 +280,6 @@ export const idlFactory = ({ IDL }) => {
     'success' : IDL.Opt(IDL.Bool),
     'topped_up_amount' : IDL.Opt(IDL.Nat),
   });
-  const ProjectEntry = IDL.Record({
-    'id' : IDL.Text,
-    'clicks' : IDL.Nat,
-    'views' : IDL.Nat,
-    'owner' : IDL.Principal,
-    'name' : IDL.Text,
-    'createdAt' : IDL.Int,
-    'description' : IDL.Text,
-  });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
@@ -272,6 +291,30 @@ export const idlFactory = ({ IDL }) => {
     'quantity' : IDL.Nat,
     'priceInCents' : IDL.Nat,
     'productDescription' : IDL.Text,
+  });
+  const Product = IDL.Record({
+    'id' : IDL.Text,
+    'name' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'description' : IDL.Text,
+    'stock' : IDL.Nat,
+    'vendorId' : IDL.Principal,
+    'price' : IDL.Nat,
+  });
+  const ProjectEntry = IDL.Record({
+    'id' : IDL.Text,
+    'clicks' : IDL.Nat,
+    'views' : IDL.Nat,
+    'owner' : IDL.Principal,
+    'name' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'description' : IDL.Text,
+  });
+  const UserProfile = IDL.Record({
+    'pendingRewardCampaigns' : IDL.Vec(IDL.Text),
+    'name' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'email' : IDL.Opt(IDL.Text),
   });
   const OrderStatus = IDL.Variant({
     'shipped' : IDL.Null,
@@ -289,15 +332,6 @@ export const idlFactory = ({ IDL }) => {
     'vendorId' : IDL.Principal,
     'quantity' : IDL.Nat,
     'customerId' : IDL.Principal,
-  });
-  const Product = IDL.Record({
-    'id' : IDL.Text,
-    'name' : IDL.Text,
-    'createdAt' : IDL.Int,
-    'description' : IDL.Text,
-    'stock' : IDL.Nat,
-    'vendorId' : IDL.Principal,
-    'price' : IDL.Nat,
   });
   const RewardCampaignType = IDL.Variant({
     'reward' : IDL.Null,
@@ -320,10 +354,12 @@ export const idlFactory = ({ IDL }) => {
     'description' : IDL.Text,
     'campaignType' : RewardCampaignType,
   });
-  const UserProfile = IDL.Record({
-    'name' : IDL.Text,
-    'createdAt' : IDL.Int,
-    'email' : IDL.Opt(IDL.Text),
+  const StripeSessionStatus = IDL.Variant({
+    'completed' : IDL.Record({
+      'userPrincipal' : IDL.Opt(IDL.Text),
+      'response' : IDL.Text,
+    }),
+    'failed' : IDL.Record({ 'error' : IDL.Text }),
   });
   const Vendor = IDL.Record({
     'bio' : IDL.Text,
@@ -335,12 +371,19 @@ export const idlFactory = ({ IDL }) => {
     'vendorOwner' : IDL.Principal,
     'principalId' : IDL.Principal,
   });
-  const StripeSessionStatus = IDL.Variant({
-    'completed' : IDL.Record({
-      'userPrincipal' : IDL.Opt(IDL.Text),
-      'response' : IDL.Text,
-    }),
-    'failed' : IDL.Record({ 'error' : IDL.Text }),
+  const VendorRatingSummary = IDL.Record({
+    'averageRating' : IDL.Float64,
+    'starBreakdown' : IDL.Vec(IDL.Nat),
+    'vendorId' : IDL.Opt(IDL.Principal),
+    'totalReviews' : IDL.Nat,
+  });
+  const Review = IDL.Record({
+    'createdAt' : IDL.Int,
+    'comment' : IDL.Text,
+    'vendorId' : IDL.Text,
+    'rating' : IDL.Nat,
+    'reviewId' : IDL.Text,
+    'authorPrincipal' : IDL.Principal,
   });
   const StripeConfiguration = IDL.Record({
     'allowedCountries' : IDL.Vec(IDL.Text),
@@ -390,40 +433,35 @@ export const idlFactory = ({ IDL }) => {
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-    'addProjectEntry' : IDL.Func([ProjectEntry], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
-    'completeRewardCampaign' : IDL.Func([IDL.Text], [], []),
     'createCheckoutSession' : IDL.Func(
         [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
         [IDL.Text],
         [],
       ),
-    'createOrder' : IDL.Func([Order], [], []),
     'createProduct' : IDL.Func([Product], [], []),
-    'createRewardCampaign' : IDL.Func([RewardCampaign], [], []),
+    'createProject' : IDL.Func([ProjectEntry], [], []),
+    'createUserProfile' : IDL.Func([UserProfile], [], []),
     'createVendor' : IDL.Func([IDL.Text, IDL.Text, IDL.Vec(IDL.Text)], [], []),
+    'finishOnboarding' : IDL.Func([], [], []),
+    'getAverageRating' : IDL.Func([IDL.Text], [IDL.Float64], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-    'getCampaignsState' : IDL.Func(
-        [],
-        [
-          IDL.Record({
-            'users' : IDL.Vec(UserProfile),
-            'campaigns' : IDL.Vec(RewardCampaign),
-          }),
-        ],
-        ['query'],
-      ),
     'getOrder' : IDL.Func([IDL.Text], [IDL.Opt(Order)], ['query']),
+    'getProject' : IDL.Func([IDL.Text], [IDL.Opt(ProjectEntry)], ['query']),
     'getProjectAnalytics' : IDL.Func(
         [IDL.Text],
         [IDL.Opt(IDL.Record({ 'clicks' : IDL.Nat, 'views' : IDL.Nat }))],
         ['query'],
       ),
-    'getPublicVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
-    'getRewardCampaignsSample' : IDL.Func(
-        [],
-        [IDL.Vec(RewardCampaign)],
+    'getProjectsByOwner' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(ProjectEntry)],
+        ['query'],
+      ),
+    'getRewardCampaign' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(RewardCampaign)],
         ['query'],
       ),
     'getStripeSessionStatus' : IDL.Func([IDL.Text], [StripeSessionStatus], []),
@@ -432,26 +470,43 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
+    'getUserRole' : IDL.Func([IDL.Principal], [UserRole], ['query']),
     'getVendor' : IDL.Func([IDL.Principal], [IDL.Opt(Vendor)], ['query']),
     'getVendorBalance' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
     'getVendorOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'getVendorRatingSummary' : IDL.Func(
+        [IDL.Principal],
+        [VendorRatingSummary],
+        ['query'],
+      ),
+    'getVendorReviews' : IDL.Func([IDL.Text], [IDL.Vec(Review)], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
-    'joinRewardCampaign' : IDL.Func([IDL.Text], [], []),
+    'listAllUnpublishedVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
+    'listAllVendorsQuery' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
     'listOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'listProductStockByVendorId' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(Product)],
+        ['query'],
+      ),
     'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-    'listProjectEntries' : IDL.Func([], [IDL.Vec(ProjectEntry)], ['query']),
     'listPublicVendors' : IDL.Func([], [IDL.Vec(Vendor)], ['query']),
     'listPublicVendorsByCategory' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(Vendor)],
         ['query'],
       ),
+    'listRewardCampaigns' : IDL.Func([], [IDL.Vec(RewardCampaign)], ['query']),
     'publishVendor' : IDL.Func([], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'searchCategory' : IDL.Func([IDL.Text], [IDL.Vec(Vendor)], ['query']),
     'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
-    'trackProjectClick' : IDL.Func([IDL.Text], [], []),
-    'trackProjectView' : IDL.Func([IDL.Text], [], []),
+    'submitReview' : IDL.Func(
+        [IDL.Text, IDL.Nat, IDL.Text],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+        [],
+      ),
     'transform' : IDL.Func(
         [TransformationInput],
         [TransformationOutput],
@@ -465,6 +520,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'verifyVendor' : IDL.Func([IDL.Principal], [], []),
     'withdrawVendorBalance' : IDL.Func([IDL.Nat], [], []),
   });
 };

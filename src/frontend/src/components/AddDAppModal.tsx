@@ -1,13 +1,22 @@
-import { useState } from 'react';
-import { useAddProjectEntry } from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { ExternalBlob, ProjectEntry as BackendProjectEntry } from '../backend';
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  type ProjectEntry as BackendProjectEntry,
+  ExternalBlob,
+} from "../backend";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useAddProjectEntry } from "../hooks/useQueries";
 
 interface AddDAppModalProps {
   open: boolean;
@@ -16,40 +25,46 @@ interface AddDAppModalProps {
 
 export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
   const { identity } = useInternetIdentity();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [url, setUrl] = useState('');
-  const [category, setCategory] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [url, setUrl] = useState("");
+  const [category, setCategory] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [revenueShareConfigId, setRevenueShareConfigId] = useState<string>('');
+  const [revenueShareConfigId, setRevenueShareConfigId] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const addEntry = useAddProjectEntry();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       setLogoFile(e.target.files[0]);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!name.trim() || !description.trim() || !url.trim() || !category.trim() || !logoFile) {
-      toast.error('Please fill in all required fields and upload a logo');
+
+    if (
+      !name.trim() ||
+      !description.trim() ||
+      !url.trim() ||
+      !category.trim() ||
+      !logoFile
+    ) {
+      toast.error("Please fill in all required fields and upload a logo");
       return;
     }
 
     if (!identity) {
-      toast.error('Please log in to add a DApp');
+      toast.error("Please log in to add a DApp");
       return;
     }
 
     try {
       setUploading(true);
-      
+
       const arrayBuffer = await logoFile.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
-      const logo = ExternalBlob.fromBytes(bytes);
+      const _logo = ExternalBlob.fromBytes(bytes);
 
       const entry: BackendProjectEntry = {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -62,17 +77,17 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
       };
 
       await addEntry.mutateAsync(entry);
-      toast.success('DApp added successfully!');
+      toast.success("DApp added successfully!");
       onClose();
-      
-      setName('');
-      setDescription('');
-      setUrl('');
-      setCategory('');
+
+      setName("");
+      setDescription("");
+      setUrl("");
+      setCategory("");
       setLogoFile(null);
-      setRevenueShareConfigId('');
+      setRevenueShareConfigId("");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add DApp');
+      toast.error(error.message || "Failed to add DApp");
       console.error(error);
     } finally {
       setUploading(false);
@@ -98,7 +113,7 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>
             <Textarea
@@ -109,7 +124,7 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
               rows={4}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="url">URL *</Label>
             <Input
@@ -120,7 +135,7 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
               onChange={(e) => setUrl(e.target.value)}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="category">Category *</Label>
             <Input
@@ -130,7 +145,7 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
               onChange={(e) => setCategory(e.target.value)}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="logo">Logo Image *</Label>
             <Input
@@ -147,7 +162,9 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="revenueConfig">Revenue Share Config (Optional)</Label>
+            <Label htmlFor="revenueConfig">
+              Revenue Share Config (Optional)
+            </Label>
             <Input
               id="revenueConfig"
               placeholder="Enter config ID if applicable"
@@ -158,10 +175,14 @@ export default function AddDAppModal({ open, onClose }: AddDAppModalProps) {
               Link this DApp to a revenue sharing configuration
             </p>
           </div>
-          
+
           <div className="flex gap-2">
-            <Button type="submit" className="flex-1" disabled={uploading || addEntry.isPending}>
-              {uploading || addEntry.isPending ? 'Adding DApp...' : 'Add DApp'}
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={uploading || addEntry.isPending}
+            >
+              {uploading || addEntry.isPending ? "Adding DApp..." : "Add DApp"}
             </Button>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

@@ -1,10 +1,16 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
-import { useTrackProjectClick } from '../hooks/useQueries';
-import { ProjectEntry } from '../backend';
-import { useEffect } from 'react';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ExternalLink } from "lucide-react";
+import { useEffect } from "react";
+import type { ProjectEntry } from "../backend";
+import { useTrackProjectClick } from "../hooks/useQueries";
 
 interface DAppCardProps {
   entry: ProjectEntry;
@@ -22,11 +28,11 @@ export default function DAppCard({ entry, onView }: DAppCardProps) {
     try {
       await trackClick.mutateAsync(entry.id);
     } catch (error) {
-      console.error('Failed to track click:', error);
+      console.error("Failed to track click:", error);
     }
     // Backend ProjectEntry doesn't have url field yet
     // For now, just show a message
-    console.log('Launch DApp:', entry.name);
+    console.log("Launch DApp:", entry.name);
   };
 
   return (
@@ -38,15 +44,17 @@ export default function DAppCard({ entry, onView }: DAppCardProps) {
             DApp
           </Badge>
         </div>
-        <CardDescription className="line-clamp-3">{entry.description}</CardDescription>
+        <CardDescription className="line-clamp-3">
+          {entry.description}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
           <span>{Number(entry.views)} views</span>
           <span>{Number(entry.clicks)} clicks</span>
         </div>
-        <Button 
-          className="w-full gap-2" 
+        <Button
+          className="w-full gap-2"
           onClick={handleLaunch}
           disabled={trackClick.isPending}
         >

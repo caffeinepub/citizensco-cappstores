@@ -1,84 +1,102 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Package, Plus } from 'lucide-react';
-import { Product } from '../../types';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle, Package, Plus } from "lucide-react";
+import React, { useRef } from "react";
+import type { Product } from "../../backend";
+import { useMyVendorProducts } from "../../hooks/useMyVendorProducts";
 
 interface MyProductsSectionProps {
-  products: Product[];
-  isLoading: boolean;
-  onScrollToProductForm: () => void;
+  vendorId: string;
+  onAddProduct?: () => void;
 }
 
-export default function MyProductsSection({ products, isLoading, onScrollToProductForm }: MyProductsSectionProps) {
+export default function MyProductsSection({
+  vendorId,
+  onAddProduct,
+}: MyProductsSectionProps) {
+  const { products, isLoading, error } = useMyVendorProducts(vendorId);
+
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            My Products
-          </CardTitle>
-          <CardDescription>Your product listings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Loading products...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        {(["sk-1", "sk-2", "sk-3"] as const).map((id) => (
+          <Skeleton key={id} className="h-20 w-full rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 text-destructive text-sm p-4 bg-destructive/10 rounded-lg">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span>Failed to load products. Please try again.</span>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border/60 rounded-xl">
+        <Package className="h-10 w-10 text-muted-foreground mb-3" />
+        <h3 className="font-semibold mb-1">No products yet</h3>
+        <p className="text-sm text-muted-foreground mb-4 max-w-xs">
+          Create your first product to start selling on the platform.
+        </p>
+        {onAddProduct && (
+          <Button size="sm" onClick={onAddProduct}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add First Product
+          </Button>
+        )}
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          My Products
-        </CardTitle>
-        <CardDescription>Your product listings</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {products.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No products yet</h3>
-            <p className="text-muted-foreground mb-6">
-              Add your first product to start selling on the platform
-            </p>
-            <Button onClick={onScrollToProductForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Your First Product
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <h3 className="font-semibold text-lg mb-2 truncate">{product.name}</h3>
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm text-muted-foreground">
+          {products.length} product{products.length !== 1 ? "s" : ""}
+        </span>
+        {onAddProduct && (
+          <Button size="sm" variant="outline" onClick={onAddProduct}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Product
+          </Button>
+        )}
+      </div>
+      {products.map((product: Product) => (
+        <Card key={product.id} className="border border-border/60">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{product.name}</p>
+                <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
                   {product.description}
                 </p>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-lg font-bold text-primary">
-                    {(Number(product.price) / 100000000).toFixed(2)} ICP
-                  </span>
-                  <Badge variant={Number(product.stock) > 0 ? 'default' : 'destructive'}>
-                    Stock: {Number(product.stock)}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Created: {new Date(Number(product.createdAt) / 1000000).toLocaleDateString()}
-                </p>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-sm font-semibold text-primary">
+                  {(Number(product.price) / 1e8).toFixed(4)} ICP
+                </span>
+                <Badge
+                  variant={
+                    Number(product.stock) > 0 ? "secondary" : "destructive"
+                  }
+                  className="text-xs"
+                >
+                  {Number(product.stock) > 0
+                    ? `${product.stock.toString()} in stock`
+                    : "Out of stock"}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }

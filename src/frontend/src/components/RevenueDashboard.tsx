@@ -1,16 +1,32 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, TrendingUp, Users, CheckCircle } from 'lucide-react';
-import { AnalyticsEntry } from '../types';
-import { ProjectEntry } from '../backend';
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { CheckCircle, DollarSign, TrendingUp, Users } from "lucide-react";
+import type { ProjectEntry } from "../backend";
+import type { AnalyticsEntry } from "../types";
 
 interface RevenueDashboardProps {
   projectEntries: ProjectEntry[];
   analytics: AnalyticsEntry[];
 }
 
-export default function RevenueDashboard({ projectEntries, analytics }: RevenueDashboardProps) {
+export default function RevenueDashboard({
+  projectEntries,
+  analytics: _analytics,
+}: RevenueDashboardProps) {
   // Calculate revenue metrics
   const totalRevenue = projectEntries.length * 1000; // Mock calculation
   const totalPayouts = projectEntries.length * 800; // Mock calculation
@@ -26,8 +42,12 @@ export default function RevenueDashboard({ projectEntries, analytics }: RevenueD
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+            <div className="text-2xl font-bold">
+              ${totalRevenue.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              +20.1% from last month
+            </p>
           </CardContent>
         </Card>
 
@@ -37,19 +57,27 @@ export default function RevenueDashboard({ projectEntries, analytics }: RevenueD
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalPayouts.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Distributed to partners</p>
+            <div className="text-2xl font-bold">
+              ${totalPayouts.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Distributed to partners
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Configs</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Configs
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeConfigs}</div>
-            <p className="text-xs text-muted-foreground">Revenue share agreements</p>
+            <p className="text-xs text-muted-foreground">
+              Revenue share agreements
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -58,7 +86,9 @@ export default function RevenueDashboard({ projectEntries, analytics }: RevenueD
       <Card>
         <CardHeader>
           <CardTitle>Revenue Breakdown by DApp</CardTitle>
-          <CardDescription>Detailed revenue and payout information</CardDescription>
+          <CardDescription>
+            Detailed revenue and payout information
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -81,8 +111,12 @@ export default function RevenueDashboard({ projectEntries, analytics }: RevenueD
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">{entry.name}</TableCell>
                     <TableCell>{Number(entry.views)}</TableCell>
-                    <TableCell className="text-right">${revenue.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">${payout.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      ${revenue.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${payout.toLocaleString()}
+                    </TableCell>
                     <TableCell>
                       {hasConfig ? (
                         <div className="flex items-center gap-1 text-green-600">

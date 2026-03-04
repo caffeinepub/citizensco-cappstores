@@ -1,299 +1,271 @@
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetWallet, useDepositToWallet, useWithdrawFromWallet } from '../hooks/useQueries';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, ArrowDownToLine, ArrowUpFromLine, History, Coins, CreditCard, Zap } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Coins,
+  CreditCard,
+  History,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
+import type React from "react";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  useDepositToWallet,
+  useGetWallet,
+  useWithdrawFromWallet,
+} from "../hooks/useQueries";
 
 export default function WalletPage() {
-  const { identity } = useInternetIdentity();
   const { data: wallet, isLoading } = useGetWallet();
   const depositMutation = useDepositToWallet();
   const withdrawMutation = useWithdrawFromWallet();
 
-  const [depositIcp, setDepositIcp] = useState('');
-  const [depositStripe, setDepositStripe] = useState('');
-  const [withdrawIcp, setWithdrawIcp] = useState('');
-  const [withdrawStripe, setWithdrawStripe] = useState('');
+  const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
-  const isAuthenticated = !!identity;
+  const icpBalance = wallet?.icpBalance ?? BigInt(0);
+  const stripeBalance = wallet?.stripeBalance ?? BigInt(0);
+  const transactionHistory = wallet?.transactionHistory ?? [];
 
-  const handleDeposit = async () => {
-    const icpAmount = BigInt(Math.floor(parseFloat(depositIcp || '0') * 100000000));
-    const stripeAmount = BigInt(Math.floor(parseFloat(depositStripe || '0') * 100));
-
-    if (icpAmount === 0n && stripeAmount === 0n) {
-      toast.error('Please enter an amount to deposit');
+  const handleDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = Number.parseFloat(depositAmount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid deposit amount");
       return;
     }
-
+    const totalAmount = BigInt(Math.round(amount * 1e8));
     try {
-      await depositMutation.mutateAsync({ icpAmount, stripeAmount });
-      toast.success('Deposit successful with instant settlement!');
-      setDepositIcp('');
-      setDepositStripe('');
-    } catch (error: any) {
-      toast.error(error.message || 'Deposit failed');
+      await depositMutation.mutateAsync(totalAmount);
+      toast.success("Deposit initiated successfully");
+      setDepositAmount("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Deposit failed";
+      toast.error(msg);
     }
   };
 
-  const handleWithdraw = async () => {
-    const icpAmount = BigInt(Math.floor(parseFloat(withdrawIcp || '0') * 100000000));
-    const stripeAmount = BigInt(Math.floor(parseFloat(withdrawStripe || '0') * 100));
-
-    if (icpAmount === 0n && stripeAmount === 0n) {
-      toast.error('Please enter an amount to withdraw');
+  const handleWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = Number.parseFloat(withdrawAmount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid withdrawal amount");
       return;
     }
-
+    const totalAmount = BigInt(Math.round(amount * 1e8));
     try {
-      await withdrawMutation.mutateAsync({ icpAmount, stripeAmount });
-      toast.success('Withdrawal successful with instant settlement!');
-      setWithdrawIcp('');
-      setWithdrawStripe('');
-    } catch (error: any) {
-      toast.error(error.message || 'Withdrawal failed');
+      await withdrawMutation.mutateAsync(totalAmount);
+      toast.success("Withdrawal initiated successfully");
+      setWithdrawAmount("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Withdrawal failed";
+      toast.error(msg);
     }
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="container py-16">
-        <Card className="max-w-2xl mx-auto text-center">
-          <CardHeader>
-            <CardTitle className="text-2xl">Wallet Access Required</CardTitle>
-            <CardDescription>Please log in to access your enhanced multi-currency wallet</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Wallet className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              Your wallet supports simultaneous real-time balances in ICP tokens and fiat currencies with instant settlement options.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
-    <div className="container py-12">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-          <Wallet className="h-10 w-10 text-primary" />
-          Enhanced Multi-Currency Wallet
-        </h1>
-        <p className="text-muted-foreground">
-          Manage your ICP and fiat balances with real-time updates and instant settlement
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <Wallet className="h-7 w-7 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tight">Wallet</h1>
+          </div>
+          <p className="text-muted-foreground">
+            Manage your ICP and fiat balances, deposits, and withdrawals.
+          </p>
+        </div>
 
-      {/* Balance Cards with Instant Settlement Badge */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <Card className="bg-gradient-to-br from-primary/10 to-chart-1/10 border-primary/20">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-primary" />
+        {/* Balance Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <Card className="border border-border/60">
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-2">
+                <Coins className="h-4 w-4" />
                 ICP Balance
-              </CardTitle>
-              <Badge variant="outline" className="gap-1">
-                <Zap className="h-3 w-3" />
-                Instant
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-3xl font-bold animate-pulse">...</div>
-            ) : (
-              <div className="text-3xl font-bold">
-                {wallet ? (Number(wallet.icpBalance) / 100000000).toFixed(8) : '0.00000000'} ICP
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground mt-2">Internet Computer Protocol tokens</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-chart-2/10 to-accent/10 border-chart-2/20">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-chart-2" />
-                Fiat Balance
-              </CardTitle>
-              <Badge variant="outline" className="gap-1">
-                <Zap className="h-3 w-3" />
-                Instant
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-3xl font-bold animate-pulse">...</div>
-            ) : (
-              <div className="text-3xl font-bold">
-                ${wallet ? (Number(wallet.stripeBalance) / 100).toFixed(2) : '0.00'}
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground mt-2">Stripe-based fiat currency (USD)</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Wallet Interface Image */}
-      <div className="mb-8">
-        <img 
-          src="/assets/generated/wallet-interface.dim_400x300.png" 
-          alt="Wallet Interface" 
-          className="w-full max-w-md mx-auto rounded-lg shadow-lg"
-        />
-      </div>
-
-      {/* Transactions */}
-      <Tabs defaultValue="deposit" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="deposit">Deposit</TabsTrigger>
-          <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="deposit" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ArrowDownToLine className="h-5 w-5" />
-                Deposit Funds
-              </CardTitle>
-              <CardDescription>
-                Add ICP tokens or fiat currency to your wallet with instant settlement
               </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="deposit-icp">ICP Amount</Label>
-                <Input
-                  id="deposit-icp"
-                  type="number"
-                  step="0.00000001"
-                  placeholder="0.00000000"
-                  value={depositIcp}
-                  onChange={(e) => setDepositIcp(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deposit-stripe">Fiat Amount (USD)</Label>
-                <Input
-                  id="deposit-stripe"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={depositStripe}
-                  onChange={(e) => setDepositStripe(e.target.value)}
-                />
-              </div>
-              <Button 
-                onClick={handleDeposit} 
-                disabled={depositMutation.isPending}
-                className="w-full gap-2"
-              >
-                {depositMutation.isPending ? 'Processing...' : (
-                  <>
-                    <Zap className="h-4 w-4" />
-                    Deposit with Instant Settlement
-                  </>
+              <CardTitle className="text-2xl">
+                {isLoading ? (
+                  <Skeleton className="h-8 w-32" />
+                ) : (
+                  `${(Number(icpBalance) / 1e8).toFixed(4)} ICP`
                 )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="withdraw" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ArrowUpFromLine className="h-5 w-5" />
-                Withdraw Funds
               </CardTitle>
-              <CardDescription>
-                Transfer funds from your wallet with instant settlement
+            </CardHeader>
+          </Card>
+
+          <Card className="border border-border/60">
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Fiat Balance (Stripe)
               </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="withdraw-icp">ICP Amount</Label>
-                <Input
-                  id="withdraw-icp"
-                  type="number"
-                  step="0.00000001"
-                  placeholder="0.00000000"
-                  value={withdrawIcp}
-                  onChange={(e) => setWithdrawIcp(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="withdraw-stripe">Fiat Amount (USD)</Label>
-                <Input
-                  id="withdraw-stripe"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={withdrawStripe}
-                  onChange={(e) => setWithdrawStripe(e.target.value)}
-                />
-              </div>
-              <Button 
-                onClick={handleWithdraw} 
-                disabled={withdrawMutation.isPending}
-                className="w-full gap-2"
-              >
-                {withdrawMutation.isPending ? 'Processing...' : (
-                  <>
-                    <Zap className="h-4 w-4" />
-                    Withdraw with Instant Settlement
-                  </>
+              <CardTitle className="text-2xl">
+                {isLoading ? (
+                  <Skeleton className="h-8 w-32" />
+                ) : (
+                  `$${(Number(stripeBalance) / 100).toFixed(2)}`
                 )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Transaction History
               </CardTitle>
-              <CardDescription>View your recent wallet activity with real-time updates</CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading history...</div>
-              ) : !wallet || wallet.transactionHistory.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No transactions yet
-                </div>
-              ) : (
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-2">
-                    {wallet.transactionHistory.map((transaction, index) => (
-                      <div key={index} className="p-3 border rounded-lg hover:shadow-md transition-shadow">
-                        <p className="text-sm">{transaction}</p>
-                      </div>
-                    ))}
+          </Card>
+        </div>
+
+        {/* Deposit / Withdraw Tabs */}
+        <Card className="mb-8 border border-border/60">
+          <CardContent className="pt-6">
+            <Tabs defaultValue="deposit">
+              <TabsList className="mb-6 w-full">
+                <TabsTrigger value="deposit" className="flex-1">
+                  <ArrowDownCircle className="h-4 w-4 mr-2" />
+                  Deposit
+                </TabsTrigger>
+                <TabsTrigger value="withdraw" className="flex-1">
+                  <ArrowUpCircle className="h-4 w-4 mr-2" />
+                  Withdraw
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="deposit">
+                <form onSubmit={handleDeposit} className="space-y-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="deposit-amount">Amount (ICP)</Label>
+                    <Input
+                      id="deposit-amount"
+                      type="number"
+                      placeholder="0.0000"
+                      min="0"
+                      step="0.0001"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                    />
                   </div>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={depositMutation.isPending}
+                  >
+                    {depositMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Processing…
+                      </span>
+                    ) : (
+                      "Deposit"
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="withdraw">
+                <form onSubmit={handleWithdraw} className="space-y-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="withdraw-amount">Amount (ICP)</Label>
+                    <Input
+                      id="withdraw-amount"
+                      type="number"
+                      placeholder="0.0000"
+                      min="0"
+                      step="0.0001"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={withdrawMutation.isPending}
+                  >
+                    {withdrawMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Processing…
+                      </span>
+                    ) : (
+                      "Withdraw"
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Transaction History */}
+        <Card className="border border-border/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-5 w-5 text-primary" />
+              Transaction History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {["sk-a", "sk-b", "sk-c", "sk-d"].map((id) => (
+                  <Skeleton key={id} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : transactionHistory.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <TrendingUp className="h-8 w-8 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">No transactions yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {transactionHistory.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between py-3 border-b border-border/40 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      {tx.type === "deposit" ? (
+                        <ArrowDownCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowUpCircle className="h-4 w-4 text-orange-500" />
+                      )}
+                      <div>
+                        <p className="font-medium text-sm capitalize">
+                          {tx.type}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(
+                            Number(tx.timestamp) / 1_000_000,
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm">
+                        {(Number(tx.amount) / 1e8).toFixed(4)} ICP
+                      </p>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {tx.type}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

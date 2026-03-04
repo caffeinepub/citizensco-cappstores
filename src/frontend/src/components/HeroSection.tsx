@@ -8,20 +8,33 @@ export default function HeroSection() {
             Discover the Future of Web3
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Explore, rate, and interact with decentralized applications on the Internet Computer. 
-            Join the revolution of truly decentralized software.
+            Explore, rate, and interact with decentralized applications on the
+            Internet Computer. Join the revolution of truly decentralized
+            software.
           </p>
           <div className="flex flex-wrap gap-4 justify-center text-sm">
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border">
-              <img src="/assets/generated/analytics-icon.dim_64x64.png" alt="Analytics" className="h-6 w-6" />
+              <img
+                src="/assets/generated/analytics-icon.dim_64x64.png"
+                alt="Analytics"
+                className="h-6 w-6"
+              />
               <span>Real-time Analytics</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border">
-              <img src="/assets/generated/payment-icon.dim_64x64.png" alt="Payments" className="h-6 w-6" />
+              <img
+                src="/assets/generated/payment-icon.dim_64x64.png"
+                alt="Payments"
+                className="h-6 w-6"
+              />
               <span>Dual Payment System</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border">
-              <img src="/assets/generated/ai-icon.dim_64x64.png" alt="AI" className="h-6 w-6" />
+              <img
+                src="/assets/generated/ai-icon.dim_64x64.png"
+                alt="AI"
+                className="h-6 w-6"
+              />
               <span>AI Recommendations</span>
             </div>
           </div>

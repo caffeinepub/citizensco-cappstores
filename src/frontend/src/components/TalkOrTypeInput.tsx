@@ -1,34 +1,42 @@
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Mic, Send } from 'lucide-react';
-import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Mic, Send } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface TalkOrTypeInputProps {
   onSubmit: (text: string) => void;
   placeholder?: string;
 }
 
-export default function TalkOrTypeInput({ onSubmit, placeholder = 'Type or speak your message...' }: TalkOrTypeInputProps) {
-  const [input, setInput] = useState('');
+export default function TalkOrTypeInput({
+  onSubmit,
+  placeholder = "Type or speak your message...",
+}: TalkOrTypeInputProps) {
+  const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
 
   const handleVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error('Speech recognition is not supported in your browser');
+    if (
+      !("webkitSpeechRecognition" in window) &&
+      !("SpeechRecognition" in window)
+    ) {
+      toast.error("Speech recognition is not supported in your browser");
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
 
-    recognition.lang = 'en-US';
+    recognition.lang = "en-US";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setIsListening(true);
-      toast.info('Listening... Speak now');
+      toast.info("Listening... Speak now");
     };
 
     recognition.onresult = (event: any) => {
@@ -38,8 +46,8 @@ export default function TalkOrTypeInput({ onSubmit, placeholder = 'Type or speak
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      toast.error('Failed to recognize speech');
+      console.error("Speech recognition error:", event.error);
+      toast.error("Failed to recognize speech");
       setIsListening(false);
     };
 
@@ -53,7 +61,7 @@ export default function TalkOrTypeInput({ onSubmit, placeholder = 'Type or speak
   const handleSubmit = () => {
     if (input.trim()) {
       onSubmit(input.trim());
-      setInput('');
+      setInput("");
     }
   };
 
@@ -62,7 +70,7 @@ export default function TalkOrTypeInput({ onSubmit, placeholder = 'Type or speak
       <Input
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+        onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
         placeholder={placeholder}
         className="flex-1"
       />
@@ -71,9 +79,9 @@ export default function TalkOrTypeInput({ onSubmit, placeholder = 'Type or speak
         size="icon"
         onClick={handleVoiceInput}
         disabled={isListening}
-        className={isListening ? 'animate-pulse' : ''}
+        className={isListening ? "animate-pulse" : ""}
       >
-        <Mic className={`h-4 w-4 ${isListening ? 'text-red-500' : ''}`} />
+        <Mic className={`h-4 w-4 ${isListening ? "text-red-500" : ""}`} />
       </Button>
       <Button onClick={handleSubmit} disabled={!input.trim()}>
         <Send className="h-4 w-4" />

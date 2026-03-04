@@ -7,6 +7,14 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface Review {
+    createdAt: bigint;
+    comment: string;
+    vendorId: string;
+    rating: bigint;
+    reviewId: string;
+    authorPrincipal: Principal;
+}
 export interface ProjectEntry {
     id: string;
     clicks: bigint;
@@ -16,6 +24,11 @@ export interface ProjectEntry {
     createdAt: bigint;
     description: string;
 }
+export interface TransformationOutput {
+    status: bigint;
+    body: Uint8Array;
+    headers: Array<http_header>;
+}
 export interface Product {
     id: string;
     name: string;
@@ -24,11 +37,6 @@ export interface Product {
     stock: bigint;
     vendorId: Principal;
     price: bigint;
-}
-export interface TransformationOutput {
-    status: bigint;
-    body: Uint8Array;
-    headers: Array<http_header>;
 }
 export interface Order {
     id: string;
@@ -68,6 +76,10 @@ export interface RewardCampaign {
     description: string;
     campaignType: RewardCampaignType;
 }
+export interface StripeConfiguration {
+    allowedCountries: Array<string>;
+    secretKey: string;
+}
 export type StripeSessionStatus = {
     __kind__: "completed";
     completed: {
@@ -80,10 +92,6 @@ export type StripeSessionStatus = {
         error: string;
     };
 };
-export interface StripeConfiguration {
-    allowedCountries: Array<string>;
-    secretKey: string;
-}
 export interface Vendor {
     bio: string;
     categories: Array<string>;
@@ -94,7 +102,14 @@ export interface Vendor {
     vendorOwner: Principal;
     principalId: Principal;
 }
+export interface VendorRatingSummary {
+    averageRating: number;
+    starBreakdown: Array<bigint>;
+    vendorId?: Principal;
+    totalReviews: bigint;
+}
 export interface UserProfile {
+    pendingRewardCampaigns: Array<string>;
     name: string;
     createdAt: bigint;
     email?: string;
@@ -125,49 +140,74 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
-    addProjectEntry(entry: ProjectEntry): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    completeRewardCampaign(campaignId: string): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
-    createOrder(order: Order): Promise<void>;
     createProduct(product: Product): Promise<void>;
-    createRewardCampaign(campaign: RewardCampaign): Promise<void>;
+    createProject(project: ProjectEntry): Promise<void>;
+    createUserProfile(userProfile: UserProfile): Promise<void>;
     createVendor(displayName: string, bio: string, categories: Array<string>): Promise<void>;
+    finishOnboarding(): Promise<void>;
+    /**
+     * / Returns the average rating for a given vendorId (principalId as Text).
+     * / Read-only: accessible by anyone including guests.
+     */
+    getAverageRating(vendorId: string): Promise<number>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    getCampaignsState(): Promise<{
-        users: Array<UserProfile>;
-        campaigns: Array<RewardCampaign>;
-    }>;
     getOrder(orderId: string): Promise<Order | null>;
+    getProject(projectId: string): Promise<ProjectEntry | null>;
     getProjectAnalytics(projectId: string): Promise<{
         clicks: bigint;
         views: bigint;
     } | null>;
-    getPublicVendor(vendorId: Principal): Promise<Vendor | null>;
-    getRewardCampaignsSample(): Promise<Array<RewardCampaign>>;
+    getProjectsByOwner(owner: Principal): Promise<Array<ProjectEntry>>;
+    getRewardCampaign(campaignId: string): Promise<RewardCampaign | null>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
+    getUserRole(user: Principal): Promise<UserRole>;
     getVendor(vendorId: Principal): Promise<Vendor | null>;
     getVendorBalance(vendorId: Principal): Promise<bigint>;
     getVendorOrders(): Promise<Array<Order>>;
+    /**
+     * / Returns a rating summary for the given vendor, including average rating,
+     * / total number of reviews, and a breakdown of review counts per star level.
+     */
+    getVendorRatingSummary(vendorId: Principal): Promise<VendorRatingSummary>;
+    /**
+     * / Returns all reviews for a given vendorId (principalId as text for frontend compatibility).
+     * / Read-only: accessible by anyone including guests.
+     */
+    getVendorReviews(vendorId: string): Promise<Array<Review>>;
     isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
-    joinRewardCampaign(campaignId: string): Promise<void>;
+    listAllUnpublishedVendors(): Promise<Array<Vendor>>;
+    listAllVendorsQuery(): Promise<Array<Vendor>>;
     listOrders(): Promise<Array<Order>>;
+    listProductStockByVendorId(vendorId: Principal): Promise<Array<Product>>;
     listProducts(): Promise<Array<Product>>;
-    listProjectEntries(): Promise<Array<ProjectEntry>>;
     listPublicVendors(): Promise<Array<Vendor>>;
     listPublicVendorsByCategory(category: string): Promise<Array<Vendor>>;
+    listRewardCampaigns(): Promise<Array<RewardCampaign>>;
     publishVendor(): Promise<void>;
-    saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveCallerUserProfile(userProfile: UserProfile): Promise<void>;
+    searchCategory(category: string): Promise<Array<Vendor>>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
-    trackProjectClick(projectId: string): Promise<void>;
-    trackProjectView(projectId: string): Promise<void>;
+    /**
+     * / Creates a new review for the calling principal.
+     * / Only authenticated users (#user role) may submit reviews.
+     */
+    submitReview(vendorId: string, rating: bigint, comment: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
     unpublishVendor(): Promise<void>;
     updateOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
     updateProduct(productId: string, product: Product): Promise<void>;
     updateVendorProfile(displayName: string, bio: string, categories: Array<string>): Promise<void>;
+    verifyVendor(vendorId: Principal): Promise<void>;
     withdrawVendorBalance(amount: bigint): Promise<void>;
 }

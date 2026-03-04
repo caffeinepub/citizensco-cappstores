@@ -1,278 +1,303 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useListPublicVendors, useListPublicVendorsByCategory } from '../hooks/useQueries';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Store, Loader2, ArrowRight, Search, X } from 'lucide-react';
-import { useNavigate } from '@tanstack/react-router';
-import { applySearchFilter, applySort, extractUniqueCategories } from '../utils/vendorDiscovery';
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
-import { readFiltersFromUrl, updateUrlParams } from '../utils/urlParams';
-import { areCategoriesEqual } from '../utils/categoryText';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Principal } from "@dfinity/principal";
+import { useNavigate } from "@tanstack/react-router";
+import { Search, SlidersHorizontal, Store } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import type { Vendor } from "../backend";
+import VendorCard from "../components/VendorCard";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import {
+  useGetVendorRatingSummary,
+  useListPublicVendors,
+} from "../hooks/useQueries";
+import {
+  extractUniqueCategories,
+  filterVendorsByCategory,
+  searchVendors,
+  sortVendors,
+} from "../utils/vendorDiscovery";
+import type { VendorSortKey } from "../utils/vendorDiscovery";
+
+// Helper to read/write URL params
+function getParam(key: string): string {
+  return new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
+function setParam(key: string, value: string) {
+  const params = new URLSearchParams(window.location.search);
+  if (value) {
+    params.set(key, value);
+  } else {
+    params.delete(key);
+  }
+  const newUrl = `${window.location.pathname}?${params.toString()}`;
+  window.history.replaceState({}, "", newUrl);
+}
+
+// Individual vendor rating fetcher - used to populate rating map
+function VendorRatingCollector({
+  vendor,
+  onRating,
+}: {
+  vendor: Vendor;
+  onRating: (id: string, rating: number) => void;
+}) {
+  const vendorPrincipal = React.useMemo(() => {
+    try {
+      return Principal.fromText(vendor.principalId.toString());
+    } catch {
+      return null;
+    }
+  }, [vendor.principalId]);
+
+  const { data } = useGetVendorRatingSummary(vendorPrincipal);
+  const vendorId = vendor.principalId.toString();
+
+  React.useEffect(() => {
+    if (data !== undefined) {
+      onRating(vendorId, data.averageRating);
+    }
+  }, [data, vendorId, onRating]);
+
+  return null;
+}
 
 export default function VendorDirectoryPage() {
-  // Initialize state from URL on mount
-  const initialFilters = useMemo(() => readFiltersFromUrl(), []);
-  
-  const [searchText, setSearchText] = useState(initialFilters.search);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(initialFilters.category);
-  const [sortMode, setSortMode] = useState<'name-asc' | 'newest'>(initialFilters.sort);
   const navigate = useNavigate();
+  const { data: vendors = [], isLoading } = useListPublicVendors();
 
-  // Debounce search text for filtering
-  const debouncedSearchText = useDebouncedValue(searchText, 250);
+  // URL-synced state
+  const [searchQuery, setSearchQuery] = useState(() => getParam("q"));
+  const [selectedCategory, setSelectedCategory] = useState(
+    () => getParam("category") || "all",
+  );
+  const [sortBy, setSortBy] = useState<VendorSortKey>(() => {
+    const p = getParam("sort");
+    return p === "name" || p === "createdAt" || p === "rating"
+      ? p
+      : "createdAt";
+  });
 
-  // Update URL when filters change (using debounced search)
-  useEffect(() => {
-    updateUrlParams({
-      search: debouncedSearchText || null,
-      category: selectedCategory,
-      sort: sortMode === 'name-asc' ? null : sortMode, // default is name-asc, so omit it
+  // Rating map state - populated by VendorRatingCollector components
+  const [ratingMap, setRatingMap] = useState<Map<string, number>>(new Map());
+
+  const handleRating = React.useCallback((id: string, rating: number) => {
+    setRatingMap((prev) => {
+      if (prev.get(id) === rating) return prev;
+      const next = new Map(prev);
+      next.set(id, rating);
+      return next;
     });
-  }, [debouncedSearchText, selectedCategory, sortMode]);
+  }, []);
 
-  // Fetch vendors based on category selection
-  const allVendorsQuery = useListPublicVendors();
-  const categoryVendorsQuery = useListPublicVendorsByCategory(selectedCategory);
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-  // Use the appropriate query based on category selection
-  const activeQuery = selectedCategory ? categoryVendorsQuery : allVendorsQuery;
-  const { data: vendors = [], isLoading, error } = activeQuery;
+  const categories = useMemo(() => extractUniqueCategories(vendors), [vendors]);
 
-  // Extract unique categories from all vendors for the filter chips
-  const availableCategories = useMemo(() => {
-    if (allVendorsQuery.data) {
-      return extractUniqueCategories(allVendorsQuery.data);
-    }
-    return [];
-  }, [allVendorsQuery.data]);
-
-  // Check if selected category exists in available categories
-  const isCategoryInList = useMemo(() => {
-    if (!selectedCategory) return true;
-    return availableCategories.some(cat => areCategoriesEqual(cat, selectedCategory));
-  }, [selectedCategory, availableCategories]);
-
-  // Apply client-side search and sort to the fetched vendors (using debounced search)
-  const filteredAndSortedVendors = useMemo(() => {
-    let result = vendors;
-    result = applySearchFilter(result, debouncedSearchText);
-    result = applySort(result, sortMode);
+  const filteredAndSorted = useMemo(() => {
+    let result = searchVendors(vendors, debouncedSearch);
+    result = filterVendorsByCategory(result, selectedCategory);
+    result = sortVendors(result, sortBy, ratingMap);
     return result;
-  }, [vendors, debouncedSearchText, sortMode]);
+  }, [vendors, debouncedSearch, selectedCategory, sortBy, ratingMap]);
 
-  // Clear all filters
-  const handleClearFilters = () => {
-    setSearchText('');
-    setSelectedCategory(null);
-    setSortMode('name-asc');
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setParam("q", e.target.value);
   };
 
-  // Check if any filters are active
-  const hasActiveFilters = searchText.trim() !== '' || selectedCategory !== null || sortMode !== 'name-asc';
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    setParam("category", value === "all" ? "" : value);
+  };
 
-  if (isLoading) {
-    return (
-      <div className="container py-16 text-center">
-        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-        <p className="text-muted-foreground">Loading vendors...</p>
-      </div>
-    );
-  }
+  const handleSortChange = (value: string) => {
+    const sort = value as VendorSortKey;
+    setSortBy(sort);
+    setParam("sort", sort === "createdAt" ? "" : sort);
+  };
 
-  if (error) {
-    return (
-      <div className="container py-16 text-center">
-        <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-        <h2 className="text-2xl font-bold mb-2">Error Loading Vendors</h2>
-        <p className="text-muted-foreground mb-4">{error.message || 'Please try again later'}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
-      </div>
-    );
-  }
-
-  const hasNoResults = filteredAndSortedVendors.length === 0 && vendors.length > 0;
-  const hasNoVendors = vendors.length === 0;
+  const handleVendorClick = (vendorId: string) => {
+    navigate({ to: `/vendors/${vendorId}` });
+  };
 
   return (
-    <div className="container py-12">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-          <Store className="h-10 w-10 text-primary" />
-          Vendor Directory
-        </h1>
-        <p className="text-muted-foreground">Discover and shop from our verified vendors</p>
+    <div className="min-h-screen bg-background">
+      {/* Page Header */}
+      <div className="bg-gradient-to-br from-primary/10 via-background to-secondary/10 border-b border-border/50">
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+              <Store size={22} className="text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold text-foreground">
+              Vendor Directory
+            </h1>
+          </div>
+          <p className="text-muted-foreground max-w-xl">
+            Discover trusted vendors and explore their products. Browse by
+            category or search for what you need.
+          </p>
+        </div>
       </div>
 
-      {/* Discovery Controls */}
-      {!hasNoVendors && (
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            {/* Search and Sort Row */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search vendors by name, description, or category..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="pl-10 pr-10"
-                />
-                {searchText && (
-                  <button
-                    onClick={() => setSearchText('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <Select value={sortMode} onValueChange={(value) => setSortMode(value as 'name-asc' | 'newest')}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name-asc">A–Z by Name</SelectItem>
-                  <SelectItem value="newest">Newest First</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              placeholder="Search vendors..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-9"
+            />
+          </div>
 
-            {/* Category Filter Chips */}
-            {(availableCategories.length > 0 || selectedCategory) && (
-              <div>
-                <p className="text-sm font-medium mb-3 text-muted-foreground">Filter by Category</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={selectedCategory === null ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedCategory(null)}
-                    className="rounded-full"
-                  >
-                    All Categories
-                  </Button>
-                  
-                  {/* Show selected category even if not in available list */}
-                  {selectedCategory && !isCategoryInList && (
-                    <Badge variant="default" className="rounded-full px-3 py-1.5 gap-2">
-                      {selectedCategory}
-                      <button
-                        onClick={() => setSelectedCategory(null)}
-                        className="hover:text-destructive"
-                        aria-label="Clear category filter"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  )}
-                  
-                  {availableCategories.map((category) => {
-                    const isSelected = selectedCategory && areCategoriesEqual(category, selectedCategory);
-                    return (
-                      <Button
-                        key={category}
-                        variant={isSelected ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSelectedCategory(isSelected ? null : category)}
-                        className="rounded-full"
-                      >
-                        {category}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+          {/* Category filter */}
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SlidersHorizontal
+                size={14}
+                className="mr-1.5 text-muted-foreground"
+              />
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            {/* Results Count and Clear Filters */}
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filteredAndSortedVendors.length}</span> of{' '}
-                <span className="font-semibold text-foreground">{vendors.length}</span> vendors
-              </p>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={handleClearFilters} className="gap-2">
-                  <X className="h-4 w-4" />
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Vendor Grid or Empty States */}
-      {hasNoVendors ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <CardTitle className="mb-2">No Vendors Yet</CardTitle>
-            <p className="text-muted-foreground">Check back soon for new vendors</p>
-          </CardContent>
-        </Card>
-      ) : hasNoResults ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Search className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <CardTitle className="mb-2">No Vendors Found</CardTitle>
-            <p className="text-muted-foreground mb-4">
-              No vendors match your current filters. Try adjusting your search or category selection.
-            </p>
-            <Button variant="outline" onClick={handleClearFilters}>
-              Clear Filters
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedVendors.map((vendor) => (
-            <Card key={vendor.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Store className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg truncate">{vendor.displayName}</CardTitle>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {vendor.principalId.slice(0, 8)}...{vendor.principalId.slice(-6)}
-                    </p>
-                  </div>
-                </div>
-                <CardDescription className="line-clamp-3 min-h-[3rem]">
-                  {vendor.bio || 'No description available'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {vendor.categories.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {vendor.categories.slice(0, 3).map((category, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 text-xs rounded-full bg-secondary text-secondary-foreground"
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <Button
-                  className="w-full gap-2"
-                  onClick={() => navigate({ to: `/vendors/${vendor.principalId}` })}
-                >
-                  Visit Store
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+          {/* Sort */}
+          <Select value={sortBy} onValueChange={handleSortChange}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="createdAt">Newest First</SelectItem>
+              <SelectItem value="name">Name A–Z</SelectItem>
+              <SelectItem value="rating">Top Rated</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
+
+        {/* Results count */}
+        {!isLoading && (
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm text-muted-foreground">
+              {filteredAndSorted.length} vendor
+              {filteredAndSorted.length !== 1 ? "s" : ""} found
+            </span>
+            {selectedCategory !== "all" && (
+              <Badge variant="secondary" className="text-xs">
+                {selectedCategory}
+                <button
+                  type="button"
+                  className="ml-1.5 hover:text-foreground"
+                  onClick={() => handleCategoryChange("all")}
+                >
+                  ×
+                </button>
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Rating collectors (invisible, just fetch data) */}
+        {vendors.map((vendor) => (
+          <VendorRatingCollector
+            key={vendor.principalId.toString()}
+            vendor={vendor}
+            onRating={handleRating}
+          />
+        ))}
+
+        {/* Vendor Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(["sk-1", "sk-2", "sk-3", "sk-4", "sk-5", "sk-6"] as const).map(
+              (id) => (
+                <div
+                  key={id}
+                  className="rounded-xl border border-border/60 p-5"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <Skeleton className="w-10 h-10 rounded-lg" />
+                    <div className="flex-1">
+                      <Skeleton className="h-5 w-32 mb-1.5" />
+                      <Skeleton className="h-3.5 w-24" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-full mb-1.5" />
+                  <Skeleton className="h-4 w-3/4 mb-3" />
+                  <div className="flex gap-1.5">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        ) : filteredAndSorted.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+              <Store size={28} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              No vendors found
+            </h3>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+              {searchQuery || selectedCategory !== "all"
+                ? "Try adjusting your search or filters."
+                : "No vendors are currently listed. Check back soon!"}
+            </p>
+            {(searchQuery || selectedCategory !== "all") && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedCategory("all");
+                  setParam("q", "");
+                  setParam("category", "");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredAndSorted.map((vendor) => (
+              <VendorCard
+                key={vendor.principalId.toString()}
+                vendor={vendor}
+                onClick={() => handleVendorClick(vendor.principalId.toString())}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

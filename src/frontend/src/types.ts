@@ -1,85 +1,88 @@
-// Frontend-only types for features not yet implemented in backend
-import { Principal } from '@dfinity/principal';
-import { ExternalBlob as BackendExternalBlob } from './backend';
+import type { Principal } from "@dfinity/principal";
 
-// Note: ProjectEntry is now imported directly from backend
-// The backend ProjectEntry only has: id, name, description, owner, views, clicks, createdAt
-// Frontend features like url, category, logo are not yet in backend
+// Re-export OrderStatus from backend for components that import it from types
+export { OrderStatus } from "./backend";
 
+// Analytics — views/clicks kept as number for component compatibility
 export interface AnalyticsEntry {
   projectId: string;
-  projectName: string;
-  clicks: number;
   views: number;
-  conversionRate: number;
+  clicks: number;
+}
+
+// Revenue Share
+export interface RevenueShareParticipant {
+  id: string;
+  percentage: number;
+  principal?: Principal;
+  stripeId?: string;
 }
 
 export interface RevenueShareConfig {
   id: string;
   participants: RevenueShareParticipant[];
+  createdAt: number;
 }
 
-export interface RevenueShareParticipant {
-  principal?: Principal;
-  stripeId?: string;
-  percentage: bigint;
+// Wallet transaction
+export interface WalletTransaction {
+  id: string;
+  amount: bigint;
+  type: string;
+  timestamp: bigint;
 }
 
+// Wallet
 export interface Wallet {
   icpBalance: bigint;
   stripeBalance: bigint;
-  transactionHistory: string[];
+  transactionHistory: WalletTransaction[];
 }
 
-export interface Vendor {
-  id: string;
-  ownerPrincipal: Principal;
+// Vendor (frontend-only extended type)
+export interface PublicVendor {
+  principalId: Principal;
+  vendorOwner: Principal;
   displayName: string;
   bio: string;
   balance: bigint;
-  createdAt: number;
-  categories?: string[];
-}
-
-export interface PublicVendor {
-  id: string;
-  principalId: string;
-  displayName: string;
-  bio: string;
-  createdAt: number;
+  createdAt: bigint;
+  published: boolean;
   categories: string[];
 }
 
-export interface Product {
-  id: string;
-  vendorId: string;
+// Product form helper (frontend-only)
+export interface ProductFormData {
   name: string;
   description: string;
-  price: bigint;
-  stock: bigint;
-  image?: BackendExternalBlob;
-  createdAt: bigint;
+  price: string;
+  stock: string;
 }
 
-export interface Order {
-  id: string;
-  buyerPrincipal: Principal;
-  customerId: string;
-  vendorId: string;
+// Order creation request (frontend-only)
+export interface OrderCreationRequest {
   productId: string;
-  quantity: bigint;
+  vendorId: Principal;
+  quantity: number;
   totalAmount: bigint;
-  status: OrderStatus;
+}
+
+// Order confirmation data (frontend-only, for dialog display)
+export interface OrderConfirmationData {
+  orderId: string;
+  productName: string;
+  vendorName: string;
+  quantity: number;
+  totalAmount: bigint;
+  status: string;
+}
+
+// Review (frontend-only interface matching backend Review type)
+export interface ReviewData {
+  reviewId: string;
+  vendorId: string;
+  authorPrincipal: Principal;
+  rating: bigint;
+  comment: string;
   createdAt: bigint;
 }
-
-export enum OrderStatus {
-  pending = 'pending',
-  paid = 'paid',
-  shipped = 'shipped',
-  delivered = 'delivered',
-  cancelled = 'cancelled',
-}
-
-// Re-export the backend ExternalBlob for convenience
-export { ExternalBlob } from './backend';

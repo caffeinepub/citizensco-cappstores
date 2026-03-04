@@ -1,51 +1,81 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useCreateRewardCampaign } from '../hooks/useQueries';
-import { RewardCampaignType } from '../backend';
-import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { RewardCampaignType } from "../backend";
+import type { RewardCampaign } from "../backend";
+import { useCreateRewardCampaign } from "../hooks/useQueries";
 
 interface CreateRewardCampaignModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-export default function CreateRewardCampaignModal({ open, onClose }: CreateRewardCampaignModalProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [campaignType, setCampaignType] = useState<RewardCampaignType>(RewardCampaignType.reward);
-  const [rewardAmount, setRewardAmount] = useState('');
+export default function CreateRewardCampaignModal({
+  open,
+  onClose,
+}: CreateRewardCampaignModalProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [campaignType, setCampaignType] = useState<RewardCampaignType>(
+    RewardCampaignType.reward,
+  );
+  const [rewardAmount, setRewardAmount] = useState("");
 
   const createCampaign = useCreateRewardCampaign();
 
   const handleSubmit = async () => {
     if (!name || !description || !rewardAmount) {
-      toast.error('Please fill in all fields');
+      toast.error("Please fill in all fields");
       return;
     }
 
-    const amount = BigInt(Math.floor(parseFloat(rewardAmount) * 100000000));
+    const amount = Number.parseFloat(rewardAmount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid reward amount");
+      return;
+    }
+
+    const amountInE8s = BigInt(Math.floor(amount * 100000000));
+
+    const campaign: RewardCampaign = {
+      id: `campaign_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      name,
+      description,
+      campaignType,
+      rewardAmount: amountInE8s,
+      participants: [],
+    };
 
     try {
-      await createCampaign.mutateAsync({
-        id: `campaign-${Date.now()}`,
-        name,
-        description,
-        campaignType,
-        rewardAmount: amount,
-        participants: [],
-      });
-      toast.success('Reward campaign created successfully!');
+      await createCampaign.mutateAsync(campaign);
+      toast.success("Reward campaign created successfully!");
       onClose();
-      setName('');
-      setDescription('');
-      setRewardAmount('');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create campaign');
+      setName("");
+      setDescription("");
+      setRewardAmount("");
+      setCampaignType(RewardCampaignType.reward);
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to create campaign";
+      toast.error(msg);
     }
   };
 
@@ -72,22 +102,47 @@ export default function CreateRewardCampaignModal({ open, onClose }: CreateRewar
 
           <div className="space-y-2">
             <Label htmlFor="campaign-type">Campaign Type</Label>
-            <Select value={campaignType} onValueChange={(value) => setCampaignType(value as RewardCampaignType)}>
+            <Select
+              value={campaignType}
+              onValueChange={(value) =>
+                setCampaignType(value as RewardCampaignType)
+              }
+            >
               <SelectTrigger id="campaign-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={RewardCampaignType.airdrop}>Airdrop</SelectItem>
+                <SelectItem value={RewardCampaignType.airdrop}>
+                  Airdrop
+                </SelectItem>
                 <SelectItem value={RewardCampaignType.bonus}>Bonus</SelectItem>
-                <SelectItem value={RewardCampaignType.commission}>Commission</SelectItem>
-                <SelectItem value={RewardCampaignType.contest}>Contest</SelectItem>
-                <SelectItem value={RewardCampaignType.earning}>Earning</SelectItem>
-                <SelectItem value={RewardCampaignType.education}>Education</SelectItem>
-                <SelectItem value={RewardCampaignType.referral}>Referral</SelectItem>
-                <SelectItem value={RewardCampaignType.reward}>Reward</SelectItem>
-                <SelectItem value={RewardCampaignType.special}>Special</SelectItem>
-                <SelectItem value={RewardCampaignType.volunteer}>Volunteer</SelectItem>
-                <SelectItem value={RewardCampaignType.workshop}>Workshop</SelectItem>
+                <SelectItem value={RewardCampaignType.commission}>
+                  Commission
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.contest}>
+                  Contest
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.earning}>
+                  Earning
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.education}>
+                  Education
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.referral}>
+                  Referral
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.reward}>
+                  Reward
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.special}>
+                  Special
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.volunteer}>
+                  Volunteer
+                </SelectItem>
+                <SelectItem value={RewardCampaignType.workshop}>
+                  Workshop
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -98,6 +153,7 @@ export default function CreateRewardCampaignModal({ open, onClose }: CreateRewar
               id="reward-amount"
               type="number"
               step="0.00000001"
+              min="0"
               value={rewardAmount}
               onChange={(e) => setRewardAmount(e.target.value)}
               placeholder="10.00000000"
@@ -116,11 +172,22 @@ export default function CreateRewardCampaignModal({ open, onClose }: CreateRewar
           </div>
 
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={onClose}>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={createCampaign.isPending}
+            >
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={createCampaign.isPending}>
-              {createCampaign.isPending ? 'Creating...' : 'Create Campaign'}
+              {createCampaign.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Campaign"
+              )}
             </Button>
           </div>
         </div>
