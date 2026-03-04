@@ -258,6 +258,7 @@ export const idlService = IDL.Service({
   'unpublishVendor' : IDL.Func([], [], []),
   'updateOrderStatus' : IDL.Func([IDL.Text, OrderStatus], [], []),
   'updateProduct' : IDL.Func([IDL.Text, Product], [], []),
+  'updateProductImage' : IDL.Func([IDL.Text, IDL.Opt(IDL.Text)], [], []),
   'updateVendorProfile' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Vec(IDL.Text)],
       [],
@@ -517,6 +518,7 @@ export const idlFactory = ({ IDL }) => {
     'unpublishVendor' : IDL.Func([], [], []),
     'updateOrderStatus' : IDL.Func([IDL.Text, OrderStatus], [], []),
     'updateProduct' : IDL.Func([IDL.Text, Product], [], []),
+    'updateProductImage' : IDL.Func([IDL.Text, IDL.Opt(IDL.Text)], [], []),
     'updateVendorProfile' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Vec(IDL.Text)],
         [],

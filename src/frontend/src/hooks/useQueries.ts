@@ -490,6 +490,25 @@ export function useUpdateProduct() {
   });
 }
 
+export function useUpdateProductImage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      imageUrl,
+    }: { productId: string; imageUrl: string | null }) => {
+      if (!actor) throw new Error("Actor not available");
+      await actor.updateProductImage(productId, imageUrl);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["myVendorProducts"] });
+    },
+  });
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 export function useGetOrders() {

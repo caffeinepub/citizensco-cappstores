@@ -308,6 +308,7 @@ export interface backendInterface {
     unpublishVendor(): Promise<void>;
     updateOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
     updateProduct(productId: string, product: Product): Promise<void>;
+    updateProductImage(productId: string, imageUrl: string | null): Promise<void>;
     updateVendorProfile(displayName: string, bio: string, categories: Array<string>): Promise<void>;
     verifyVendor(vendorId: Principal): Promise<void>;
     withdrawVendorBalance(amount: bigint): Promise<void>;
@@ -1010,6 +1011,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateProductImage(arg0: string, arg1: string | null): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateProductImage(arg0, to_candid_opt_n47(this._uploadFile, this._downloadFile, arg1));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateProductImage(arg0, to_candid_opt_n47(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
     async updateVendorProfile(arg0: string, arg1: string, arg2: Array<string>): Promise<void> {
         if (this.processError) {
             try {
@@ -1384,6 +1399,9 @@ function to_candid__CaffeineStorageRefillInformation_n2(_uploadFile: (file: Exte
 }
 function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CaffeineStorageRefillInformation | null): [] | [__CaffeineStorageRefillInformation] {
     return value === null ? candid_none() : candid_some(to_candid__CaffeineStorageRefillInformation_n2(_uploadFile, _downloadFile, value));
+}
+function to_candid_opt_n47(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: string | null): [] | [string] {
+    return value === null ? candid_none() : candid_some(value);
 }
 function to_candid_record_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: string;

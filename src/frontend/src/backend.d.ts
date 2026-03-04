@@ -208,6 +208,7 @@ export interface backendInterface {
     unpublishVendor(): Promise<void>;
     updateOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
     updateProduct(productId: string, product: Product): Promise<void>;
+    updateProductImage(productId: string, imageUrl: string | null): Promise<void>;
     updateVendorProfile(displayName: string, bio: string, categories: Array<string>): Promise<void>;
     verifyVendor(vendorId: Principal): Promise<void>;
     withdrawVendorBalance(amount: bigint): Promise<void>;

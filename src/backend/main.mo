@@ -15,13 +15,10 @@ import MixinAuthorization "authorization/MixinAuthorization";
 import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Float "mo:core/Float";
-import Migration "migration";
 
-(with migration = Migration.run)
+
 actor {
   include MixinStorage();
-
-  // Access Control state (required for authorization in the backend)
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
@@ -29,7 +26,7 @@ actor {
   let vendors = Map.empty<Principal, Vendor>();
   let projects = Map.empty<Text, ProjectEntry>();
   let rewardCampaigns = Map.empty<Text, RewardCampaign>();
-  let products = Map.empty<Text, Product>(); // This will run migration code to preserve previous product entries.
+  let products = Map.empty<Text, Product>();
   let orders = Map.empty<Text, Order>();
   let userProfiles = Map.empty<Principal, UserProfile>();
   let reviews = Map.empty<Text, Review>();
@@ -115,7 +112,7 @@ actor {
     price : Nat;
     stock : Nat;
     createdAt : Int;
-    imageUrl : ?Text; // Optional field for future improvement.
+    imageUrl : ?Text;
   };
 
   public type OrderStatus = {
@@ -440,6 +437,19 @@ actor {
     };
   };
 
+  public shared ({ caller }) func updateProductImage(productId : Text, imageUrl : ?Text) : async () {
+    switch (products.get(productId)) {
+      case (null) { Runtime.trap("Product not found") };
+      case (?existing) {
+        if (existing.vendorId != caller and not AccessControl.hasPermission(accessControlState, caller, #admin)) {
+          Runtime.trap("Unauthorized: Only the vendor owner or an admin can update a product image");
+        };
+        let updated = { existing with imageUrl = imageUrl };
+        products.add(productId, updated);
+      };
+    };
+  };
+
   public query ({ caller }) func listProducts() : async [Product] {
     products.values().toArray();
   };
@@ -684,4 +694,3 @@ actor {
     #ok;
   };
 };
-

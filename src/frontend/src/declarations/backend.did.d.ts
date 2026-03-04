@@ -222,6 +222,7 @@ export interface _SERVICE {
   'unpublishVendor' : ActorMethod<[], undefined>,
   'updateOrderStatus' : ActorMethod<[string, OrderStatus], undefined>,
   'updateProduct' : ActorMethod<[string, Product], undefined>,
+  'updateProductImage' : ActorMethod<[string, [] | [string]], undefined>,
   'updateVendorProfile' : ActorMethod<
     [string, string, Array<string>],
     undefined
