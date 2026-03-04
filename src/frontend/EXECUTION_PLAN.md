@@ -97,3 +97,15 @@
 - [x] Display error messages via toast on order failure
 - [x] Add OrderCreationRequest and OrderConfirmationData to types.ts
 - [x] Navigate to /orders from OrderConfirmationDialog
+
+## Stage 11: Orders System Polish & Admin Order Management (in progress)
+- [x] Add status filter tabs with count badges to OrdersPage
+- [x] Resolve product names in OrdersPage table (productMap)
+- [x] Add product name display to OrderDetailDialog
+- [x] Add "View Vendor Store" link in OrderDetailDialog
+- [x] Add Orders badge count to VendorPage Orders tab
+- [x] Add Orders tab to AdminPanel with full platform-wide order view
+- [x] Admin order status filter (all/pending/paid/shipped/delivered/cancelled)
+- [x] Admin order actions: Mark Paid, Mark Shipped, Mark Delivered, Cancel
+- [x] Admin order table shows product name, vendor name, quantity, amount, date
+- [ ] Product image support in ShopPage and VendorStorePage (next)

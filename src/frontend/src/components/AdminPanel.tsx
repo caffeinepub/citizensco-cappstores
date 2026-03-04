@@ -26,13 +26,23 @@ import {
   Gift,
   Megaphone,
   MousePointerClick,
+  Package,
   Settings,
   TrendingUp,
   Wallet,
 } from "lucide-react";
 import { useState } from "react";
 import { useMemo } from "react";
-import { useGetAllAnalytics, useListProjectEntries } from "../hooks/useQueries";
+import { toast } from "sonner";
+import { OrderStatus } from "../backend";
+import {
+  useGetAllAnalytics,
+  useGetOrders,
+  useListProjectEntries,
+  useListPublicVendors,
+  useProductMap,
+  useUpdateOrderStatus,
+} from "../hooks/useQueries";
 import CreateRewardCampaignModal from "./CreateRewardCampaignModal";
 import RevenueDashboard from "./RevenueDashboard";
 import RevenueShareConfigModal from "./RevenueShareConfigModal";
@@ -45,8 +55,60 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const { data: analytics = [], isLoading: analyticsLoading } =
     useGetAllAnalytics();
   const { data: projectEntries = [] } = useListProjectEntries();
+  const { data: allOrders = [], isLoading: ordersLoading } = useGetOrders();
+  const { productMap, isLoading: productMapLoading } = useProductMap();
+  const { data: publicVendors = [] } = useListPublicVendors();
+  const updateOrderStatus = useUpdateOrderStatus();
   const [revenueConfigModalOpen, setRevenueConfigModalOpen] = useState(false);
   const [rewardCampaignModalOpen, setRewardCampaignModalOpen] = useState(false);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
+
+  const vendorNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const v of publicVendors) {
+      map.set(v.principalId.toString(), v.displayName);
+    }
+    return map;
+  }, [publicVendors]);
+
+  const filteredAdminOrders = useMemo(() => {
+    if (orderStatusFilter === "all") return allOrders;
+    return allOrders.filter((o) => {
+      const s = typeof o.status === "string" ? o.status : String(o.status);
+      return s === orderStatusFilter;
+    });
+  }, [allOrders, orderStatusFilter]);
+
+  const handleAdminUpdateStatus = async (
+    orderId: string,
+    status: OrderStatus,
+  ) => {
+    try {
+      await updateOrderStatus.mutateAsync({ orderId, status });
+      toast.success("Order status updated");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to update";
+      toast.error(msg);
+    }
+  };
+
+  function statusVariant(
+    status: string,
+  ): "default" | "secondary" | "destructive" | "outline" {
+    switch (status) {
+      case "delivered":
+      case "paid":
+        return "default";
+      case "pending":
+        return "secondary";
+      case "shipped":
+        return "outline";
+      case "cancelled":
+        return "destructive";
+      default:
+        return "outline";
+    }
+  }
 
   // Calculate aggregate statistics
   const stats = useMemo(() => {
@@ -104,6 +166,17 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         <TabsList className="mb-6 flex-wrap h-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="orders" data-ocid="admin.orders.tab">
+            Orders
+            {allOrders.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="ml-1.5 text-xs px-1.5 py-0 h-4"
+              >
+                {allOrders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="wallets">Wallets</TabsTrigger>
           <TabsTrigger value="rewards">Rewards</TabsTrigger>
@@ -374,6 +447,227 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     </CardContent>
                   </Card>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="orders" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    All Platform Orders
+                  </CardTitle>
+                  <CardDescription>
+                    View and manage every order across all vendors
+                  </CardDescription>
+                </div>
+                {/* Status filter */}
+                <div
+                  className="flex flex-wrap gap-1"
+                  data-ocid="admin.orders.filter.tab"
+                >
+                  {(
+                    [
+                      "all",
+                      "pending",
+                      "paid",
+                      "shipped",
+                      "delivered",
+                      "cancelled",
+                    ] as const
+                  ).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setOrderStatusFilter(s)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        orderStatusFilter === s
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                      {s !== "all" &&
+                        allOrders.filter((o) => {
+                          const st =
+                            typeof o.status === "string"
+                              ? o.status
+                              : String(o.status);
+                          return st === s;
+                        }).length > 0 && (
+                          <span className="ml-1 opacity-70">
+                            (
+                            {
+                              allOrders.filter((o) => {
+                                const st =
+                                  typeof o.status === "string"
+                                    ? o.status
+                                    : String(o.status);
+                                return st === s;
+                              }).length
+                            }
+                            )
+                          </span>
+                        )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {ordersLoading || productMapLoading ? (
+                <div
+                  className="text-center py-10 text-muted-foreground"
+                  data-ocid="admin.orders.loading_state"
+                >
+                  <Package className="h-10 w-10 mx-auto mb-3 animate-pulse opacity-30" />
+                  Loading orders...
+                </div>
+              ) : filteredAdminOrders.length === 0 ? (
+                <div
+                  className="text-center py-10 text-muted-foreground"
+                  data-ocid="admin.orders.empty_state"
+                >
+                  <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">
+                    {orderStatusFilter === "all"
+                      ? "No orders yet"
+                      : `No ${orderStatusFilter} orders`}
+                  </p>
+                </div>
+              ) : (
+                <Table data-ocid="admin.orders.table">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAdminOrders.map((order, idx) => {
+                      const productName =
+                        productMap.get(order.productId) ??
+                        `${order.productId.slice(0, 8)}…`;
+                      const vendorName =
+                        vendorNameMap.get(order.vendorId.toString()) ??
+                        `${order.vendorId.toString().slice(0, 8)}…`;
+                      const statusStr =
+                        typeof order.status === "string"
+                          ? order.status
+                          : String(order.status);
+                      return (
+                        <TableRow
+                          key={order.id}
+                          data-ocid={`admin.orders.row.${idx + 1}`}
+                        >
+                          <TableCell className="font-mono text-xs">
+                            {order.id.slice(0, 8)}…
+                          </TableCell>
+                          <TableCell className="max-w-[140px] truncate text-sm">
+                            {productName}
+                          </TableCell>
+                          <TableCell className="max-w-[120px] truncate text-sm">
+                            {vendorName}
+                          </TableCell>
+                          <TableCell>{Number(order.quantity)}</TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {(Number(order.totalAmount) / 1e8).toFixed(4)} ICP
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={statusVariant(statusStr)}
+                              className="capitalize text-xs"
+                            >
+                              {statusStr}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {new Date(
+                              Number(order.createdAt) / 1_000_000,
+                            ).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 flex-wrap">
+                              {statusStr === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7"
+                                  onClick={() =>
+                                    handleAdminUpdateStatus(
+                                      order.id,
+                                      OrderStatus.paid,
+                                    )
+                                  }
+                                  data-ocid={`admin.orders.mark_paid.${idx + 1}`}
+                                >
+                                  Mark Paid
+                                </Button>
+                              )}
+                              {statusStr === "paid" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7"
+                                  onClick={() =>
+                                    handleAdminUpdateStatus(
+                                      order.id,
+                                      OrderStatus.shipped,
+                                    )
+                                  }
+                                >
+                                  Mark Shipped
+                                </Button>
+                              )}
+                              {statusStr === "shipped" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7"
+                                  onClick={() =>
+                                    handleAdminUpdateStatus(
+                                      order.id,
+                                      OrderStatus.delivered,
+                                    )
+                                  }
+                                >
+                                  Mark Delivered
+                                </Button>
+                              )}
+                              {statusStr !== "cancelled" &&
+                                statusStr !== "delivered" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-xs h-7 text-destructive hover:text-destructive"
+                                    onClick={() =>
+                                      handleAdminUpdateStatus(
+                                        order.id,
+                                        OrderStatus.cancelled,
+                                      )
+                                    }
+                                    data-ocid={`admin.orders.cancel.${idx + 1}`}
+                                  >
+                                    Cancel
+                                  </Button>
+                                )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
